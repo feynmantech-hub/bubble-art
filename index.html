@@ -3,162 +3,334 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D Bubble V4</title>
+    <title>3D 吹泡泡互動藝術</title>
     <style>
-        body { background-color: #000; color: white; font-family: sans-serif; margin: 0; overflow: hidden; }
-        #log-container {
-            position: absolute; top: 0; left: 0; width: 100%; height: 50%;
-            background: rgba(20, 20, 20, 0.9); overflow-y: scroll;
-            padding: 10px; font-family: monospace; font-size: 14px; border-bottom: 2px solid #555;
-            z-index: 999;
-        }
-        .log-line { margin: 5px 0; border-bottom: 1px solid #333; padding-bottom: 2px; }
-        .success { color: #0f0; }
-        .error { color: #f55; font-weight: bold; }
-        .info { color: #ff0; }
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: "微軟正黑體", sans-serif; user-select: none; }
         
-        #btn-area {
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 50%;
-            display: flex; justify-content: center; align-items: center;
-            z-index: 100;
+        /* 介面層 */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 100; pointer-events: none; /* 讓點擊能穿透到 3D 層 */
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        button {
-            padding: 20px 40px; font-size: 20px; border-radius: 10px;
-            background: #666; color: #ccc; border: none; cursor: not-allowed;
+
+        /* 開始按鈕 (初始顯示) */
+        #start-screen {
+            pointer-events: auto;
+            background: rgba(0,0,0,0.7);
+            padding: 40px; border-radius: 20px; text-align: center;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
         }
-        button.ready {
-            background: #007bff; color: white; cursor: pointer; box-shadow: 0 0 15px #007bff;
+
+        #btn-start {
+            background: linear-gradient(135deg, #00c6ff, #0072ff);
+            color: white; border: none; padding: 15px 40px; font-size: 1.5rem;
+            border-radius: 30px; cursor: pointer; margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(0,114,255,0.4); transition: transform 0.2s;
         }
-        
-        #version-tag {
-            position: absolute; top: 10px; right: 10px; color: #555; font-size: 12px; z-index: 1000;
+        #btn-start:active { transform: scale(0.95); }
+
+        /* 操作指引 (啟動後顯示) */
+        #instructions {
+            position: absolute; top: 20px; width: 100%; text-align: center;
+            opacity: 0; transition: opacity 1s; pointer-events: none;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8); color: white;
         }
+        .hint-text { font-size: 1.1rem; margin: 5px; color: rgba(255,255,255,0.9); }
+        .sub-hint { font-size: 0.9rem; color: rgba(255,255,255,0.6); }
+
+        /* 麥克風音量條 (視覺回饋) */
+        #mic-indicator {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            width: 200px; height: 10px; background: rgba(255,255,255,0.2);
+            border-radius: 5px; overflow: hidden; opacity: 0; transition: opacity 1s;
+        }
+        #mic-level {
+            width: 0%; height: 100%; background: #00ff88; transition: width 0.1s;
+        }
+
+        video { position: absolute; opacity: 0; pointer-events: none; }
     </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
-    <div id="version-tag">版本: V4.0 (網路診斷)</div>
+    <div id="ui-layer">
+        <div id="start-screen">
+            <h1 style="color:white; margin:0;">🫧 互動泡泡藝術</h1>
+            <p style="color:#ccc;">請允許相機與麥克風權限</p>
+            <button id="btn-start" onclick="initExperience()">開始體驗</button>
+        </div>
 
-    <div id="log-container">
-        <div class="log-line info">1. 網頁架構已載入</div>
+        <div id="instructions">
+            <div class="hint-text">😮 對著麥克風嘟嘴吹氣</div>
+            <div class="sub-hint">👆 點擊泡泡可以戳破它</div>
+        </div>
+
+        <div id="mic-indicator"><div id="mic-level"></div></div>
     </div>
 
-    <div id="btn-area">
-        <button id="start-btn" disabled>正在下載程式庫...</button>
-    </div>
-
-    <video id="camera-feed" playsinline webkit-playsinline muted style="position:absolute; bottom:0; right:0; width:1px; opacity:0;"></video>
+    <video id="input-video" playsinline webkit-playsinline muted></video>
 
     <script>
-        const logger = document.getElementById('log-container');
-        const btn = document.getElementById('start-btn');
-        let libCount = 0;
-        const totalLibs = 3;
+        // --- 全域變數 ---
+        let scene, camera, renderer;
+        let bubbles = [];
+        let windSpeed = 0;
+        let audioContext, analyser, dataArray;
+        let isBlowingMouth = false; // 嘴型判定
+        let isBlowingMic = false;   // 聲音判定
+        let micVolume = 0;
+        
+        // 互動射線 (Raycaster)
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
 
-        function log(msg, type = '') {
-            const div = document.createElement('div');
-            div.className = 'log-line ' + type;
-            div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
-            logger.appendChild(div);
-            console.log(msg);
-        }
+        async function initExperience() {
+            const startScreen = document.getElementById('start-screen');
+            const instructions = document.getElementById('instructions');
+            const micIndicator = document.getElementById('mic-indicator');
+            const btn = document.getElementById('btn-start');
 
-        function checkLibs() {
-            libCount++;
-            log(`程式庫進度: ${libCount} / ${totalLibs}`, 'info');
-            if (libCount === totalLibs) {
-                log('✅ 所有程式庫下載完成！', 'success');
-                btn.innerText = "點擊開始";
-                btn.disabled = false;
-                btn.classList.add('ready');
-                
-                // 綁定點擊事件
-                btn.onclick = startCamera;
-            }
-        }
-
-        async function startCamera() {
-            btn.style.display = 'none';
-            log('正在請求相機權限...', 'info');
+            btn.innerText = "啟動中...";
+            
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-                document.getElementById('camera-feed').srcObject = stream;
-                document.getElementById('camera-feed').play();
-                log('✅ 相機已開啟！開始載入 AI...', 'success');
-                initApp(); // 啟動主程式
+                // 1. 取得影音權限 (相機 + 麥克風)
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user', width: 640, height: 480 }, 
+                    audio: true 
+                });
+
+                // 2. 設定相機
+                const video = document.getElementById('input-video');
+                video.srcObject = stream;
+                await video.play();
+
+                // 3. 設定音訊分析 (Audio Context)
+                setupAudio(stream);
+
+                // 4. 初始化 3D 場景
+                initThreeJS();
+
+                // 5. 初始化 AI
+                initAI(video);
+
+                // 6. UI 切換
+                startScreen.style.display = 'none';
+                instructions.style.opacity = 1;
+                micIndicator.style.opacity = 1;
+
+                // 7. 加入點擊偵測
+                window.addEventListener('pointerdown', onPointerDown);
+
             } catch (err) {
-                log('❌ 相機開啟失敗: ' + err.message, 'error');
-                alert('相機失敗: ' + err.message);
-                btn.style.display = 'block';
+                alert("啟動失敗: " + err.message + "\n請確認已允許麥克風與相機權限");
+                btn.innerText = "重試";
             }
         }
 
-        // 設置逾時警告 (如果 8 秒還沒載入完)
-        setTimeout(() => {
-            if (libCount < totalLibs) {
-                log('⚠️ 警告：下載逾時。您的網路可能封鎖了 CDN，或網速過慢。', 'error');
-                log('請嘗試切換 Wi-Fi / 4G 網路。', 'error');
+        // --- 音訊處理 ---
+        function setupAudio(stream) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioContext.createMediaStreamSource(stream);
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            source.connect(analyser); // 只連接分析器，不輸出到喇叭 (避免回音)
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+        }
+
+        function updateMic() {
+            if (!analyser) return;
+            analyser.getByteFrequencyData(dataArray);
+            
+            // 計算平均音量
+            let sum = 0;
+            for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+            micVolume = sum / dataArray.length;
+
+            // 視覺回饋
+            const levelBar = document.getElementById('mic-level');
+            levelBar.style.width = Math.min(micVolume, 100) + '%';
+            
+            // 判定是否在吹氣 (音量閥值可調整)
+            isBlowingMic = micVolume > 20; 
+        }
+
+        // --- 點擊爆破 (Raycasting) ---
+        function onPointerDown(event) {
+            // 將滑鼠/觸控座標轉為標準化設備座標 (-1 到 +1)
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            // 檢查是否點到泡泡
+            // 注意：我們只偵測泡泡的 Mesh
+            const bubbleMeshes = bubbles.map(b => b.mesh);
+            const intersects = raycaster.intersectObjects(bubbleMeshes);
+
+            if (intersects.length > 0) {
+                // 找到被點擊的那個泡泡物件
+                const hitMesh = intersects[0].object;
+                
+                // 從 bubbles 陣列中反查並引發爆破
+                const targetBubble = bubbles.find(b => b.mesh === hitMesh);
+                if (targetBubble) {
+                    targetBubble.pop();
+                }
             }
-        }, 8000);
+        }
 
-    </script>
+        // --- 3D 場景邏輯 ---
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            
+            // 天空背景
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const context = canvas.getContext('2d');
+            const gradient = context.createLinearGradient(0, 0, 0, 32);
+            gradient.addColorStop(0, '#87CEEB'); 
+            gradient.addColorStop(1, '#E0F7FA'); 
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 32, 32);
+            scene.background = new THREE.CanvasTexture(canvas);
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" 
-            onload="log('Three.js 下載成功', 'success'); checkLibs();" 
-            onerror="log('❌ Three.js 下載失敗', 'error');"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" 
-            onload="log('Camera Utils 下載成功', 'success'); checkLibs();" 
-            onerror="log('❌ Camera Utils 下載失敗', 'error');"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" 
-            onload="log('Face Mesh 下載成功', 'success'); checkLibs();" 
-            onerror="log('❌ Face Mesh 下載失敗', 'error');"></script>
-
-    <script>
-        function initApp() {
-            // 簡化的 3D 與 AI 啟動邏輯
-            const scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x333333);
-            const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 100);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 100);
             camera.position.z = 5;
-            const renderer = new THREE.WebGLRenderer();
+
+            renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             document.body.appendChild(renderer.domElement);
-            renderer.domElement.style.zIndex = -1; // 放在最下層
 
-            // 測試用立方體 (證明 3D 有跑)
-            const cube = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshNormalMaterial());
-            scene.add(cube);
+            // 燈光
+            scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            dirLight.position.set(10, 20, 10);
+            scene.add(dirLight);
 
-            // AI 啟動
+            animate();
+        }
+
+        // --- 泡泡類別 ---
+        const bubbleGeo = new THREE.SphereGeometry(1, 64, 64);
+        const bubbleMat = new THREE.MeshPhysicalMaterial({
+            color: 0xffffff, transmission: 0.95, opacity: 1, transparent: true,
+            roughness: 0, metalness: 0, thickness: 0.1, 
+            ior: 1.5, reflectivity: 1, clearcoat: 1, clearcoatRoughness: 0
+        });
+
+        class Bubble {
+            constructor() {
+                this.mesh = new THREE.Mesh(bubbleGeo, bubbleMat.clone()); // 複製材質以便獨立控制
+                
+                const size = 0.2 + Math.random() * 0.3;
+                this.mesh.scale.set(size, size, size);
+                
+                // 從畫面底部中央生成
+                this.mesh.position.set((Math.random()-0.5)*0.5, -2, 0);
+                
+                this.speedY = 0.02 + Math.random() * 0.02;
+                this.wobbleOffset = Math.random() * 100;
+                this.isPopping = false;
+                
+                scene.add(this.mesh);
+            }
+
+            update() {
+                if (this.isPopping) {
+                    // 爆破動畫：快速變大並消失
+                    this.mesh.scale.multiplyScalar(1.1);
+                    this.mesh.material.opacity -= 0.1;
+                    return (this.mesh.material.opacity > 0);
+                }
+
+                // 物理移動
+                // 風速影響 (音量越大，風越強)
+                const windForce = (micVolume / 100) * 0.05; 
+                this.mesh.position.y += this.speedY + windForce; 
+                this.mesh.position.x += Math.sin(Date.now()*0.001 + this.wobbleOffset) * 0.01;
+
+                // 移除條件
+                if (this.mesh.position.y > 6) return false;
+                return true;
+            }
+
+            pop() {
+                if (this.isPopping) return;
+                this.isPopping = true;
+                // 可以在這裡加入音效邏輯
+            }
+
+            dispose() {
+                scene.remove(this.mesh);
+                this.mesh.geometry.dispose(); // 注意：幾何體是共用的，其實不用 dispose
+                this.mesh.material.dispose();
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            updateMic(); // 更新音量
+
+            // 生成泡泡邏輯：(嘴型符合 OR 聲音夠大) AND 機率
+            const shouldSpawn = (isBlowingMouth || isBlowingMic) && Math.random() > 0.85;
+            
+            if (shouldSpawn) {
+                bubbles.push(new Bubble());
+            }
+
+            // 更新所有泡泡
+            for (let i = bubbles.length - 1; i >= 0; i--) {
+                if (!bubbles[i].update()) {
+                    bubbles[i].dispose();
+                    bubbles.splice(i, 1);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // --- AI 模型 ---
+        function initAI(videoElement) {
             const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
             faceMesh.setOptions({maxNumFaces: 1, minDetectionConfidence: 0.5});
-            faceMesh.onResults(results => {
-                cube.rotation.x += 0.01;
-                cube.rotation.y += 0.01;
-                if (results.multiFaceLandmarks.length > 0) {
-                    cube.scale.set(1.5, 1.5, 1.5); // 偵測到臉就變大
-                } else {
-                    cube.scale.set(1, 1, 1);
+            
+            faceMesh.onResults((results) => {
+                if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                    const lm = results.multiFaceLandmarks[0];
+                    // 嘴巴寬高比
+                    const h = Math.hypot(lm[13].x - lm[14].x, lm[13].y - lm[14].y);
+                    const w = Math.hypot(lm[61].x - lm[291].x, lm[61].y - lm[291].y);
+                    
+                    // 判定是否嘟嘴 (比值 > 0.4 且嘴巴微開)
+                    if ((h/w) > 0.4 && h > 0.01) {
+                        isBlowingMouth = true;
+                    } else {
+                        isBlowingMouth = false;
+                    }
                 }
             });
 
-            const video = document.getElementById('camera-feed');
-            const cameraUtils = new Camera(video, {
-                onFrame: async () => { await faceMesh.send({image: video}); },
+            const cameraUtils = new Camera(videoElement, {
+                onFrame: async () => { await faceMesh.send({image: videoElement}); },
                 width: 640, height: 480
             });
             cameraUtils.start();
-            
-            function animate() {
-                requestAnimationFrame(animate);
-                renderer.render(scene, camera);
-            }
-            animate();
-            log('🚀 系統完全啟動！看到旋轉方塊了嗎？', 'success');
-            setTimeout(() => { logger.style.display = 'none'; }, 2000); // 成功後隱藏日誌
         }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
     </script>
 </body>
 </html>
