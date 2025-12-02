@@ -15,7 +15,7 @@
             z-index: 100; pointer-events: none;
         }
 
-        /* 開始按鈕與訊息 */
+        /* 按鈕設計 */
         #start-btn {
             pointer-events: auto;
             background: rgba(255, 255, 255, 0.2);
@@ -32,6 +32,7 @@
             margin-top: 20px; color: rgba(255,255,255,0.8); 
             text-align: center; font-size: 1rem; max-width: 80%;
             text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;
         }
 
         /* 隱藏的 Video */
@@ -41,7 +42,7 @@
             object-fit: cover; display: none; 
         }
 
-        /* 互動提示 (開始後才顯示) */
+        /* 互動提示 */
         #instructions {
             position: absolute; top: 20px; width: 100%;
             text-align: center; color: rgba(255,255,255,0.9); pointer-events: none;
@@ -52,8 +53,8 @@
 <body>
 
     <div id="ui-container">
-        <button id="start-btn">開始吹泡泡</button>
-        <div id="status-msg">請點擊按鈕並允許相機權限</div>
+        <button id="start-btn">開始體驗</button>
+        <div id="status-msg">請點擊按鈕啟動</div>
     </div>
 
     <div id="instructions">
@@ -79,36 +80,62 @@
         import { FaceMesh } from '@mediapipe/face_mesh';
         import { Camera } from '@mediapipe/camera_utils';
 
-        // --- UI 控制邏輯 ---
         const startBtn = document.getElementById('start-btn');
         const statusMsg = document.getElementById('status-msg');
-        const uiContainer = document.getElementById('ui-container');
         const instructions = document.getElementById('instructions');
         const videoElement = document.getElementById('camera-feed');
-        
         let cameraUtils;
+        let isCameraStarted = false;
 
+        // --- 1. 初始化 AI 模型 ---
+        statusMsg.innerText = "正在載入 AI 模型...";
+        startBtn.disabled = true; // 模型載入前先鎖住按鈕
+
+        const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
+        faceMesh.setOptions({
+            maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5
+        });
+        
+        faceMesh.onResults(onResults);
+        
+        // 當 FaceMesh 準備好後，解鎖按鈕
+        faceMesh.initialize().then(() => {
+            statusMsg.innerText = "準備就緒，請點擊按鈕";
+            startBtn.disabled = false;
+        });
+
+        // --- 2. 按鈕啟動邏輯 ---
         startBtn.addEventListener('click', async () => {
-            startBtn.style.display = 'none'; // 隱藏按鈕
-            statusMsg.innerText = "正在啟動鏡頭與 AI 模型，請稍候...";
+            startBtn.style.display = 'none';
+            statusMsg.innerText = "正在請求相機權限...";
             
             try {
-                // 嘗試啟動相機
+                // 初始化相機工具
+                cameraUtils = new Camera(videoElement, {
+                    onFrame: async () => { await faceMesh.send({image: videoElement}); },
+                    width: 640, height: 480
+                });
+                
                 await cameraUtils.start();
-                // 成功後隱藏載入訊息，顯示操作提示
+                
+                // 成功啟動
                 statusMsg.style.display = 'none';
                 instructions.style.opacity = 1;
-                videoElement.style.display = 'block'; // 顯示小視窗讓使用者知道鏡頭有開
+                videoElement.style.display = 'block';
+                isCameraStarted = true;
+
             } catch (error) {
                 console.error(error);
-                statusMsg.innerText = "無法開啟鏡頭：\n1. 請確認網址是 https 或 localhost\n2. 請檢查瀏覽器網址列是否封鎖了權限";
-                startBtn.style.display = 'block'; // 顯示按鈕讓使用者重試
+                statusMsg.style.color = "#ff6b6b";
+                statusMsg.innerText = "錯誤：無法開啟鏡頭。\n請檢查瀏覽器網址列是否封鎖了權限，\n或嘗試使用其他瀏覽器。";
+                startBtn.style.display = 'block';
                 startBtn.innerText = "重試";
             }
         });
 
-        // --- Three.js 場景設置 (同前) ---
+        // --- 3. Three.js 場景 ---
         const scene = new THREE.Scene();
+        // 背景漸層
         const canvas = document.createElement('canvas');
         canvas.width = 32; canvas.height = 32;
         const context = canvas.getContext('2d');
@@ -134,7 +161,7 @@
         dirLight.position.set(5, 10, 7);
         scene.add(dirLight);
 
-        // --- 泡泡系統 ---
+        // --- 泡泡物件 ---
         const bubbles = [];
         const bubbleGeometry = new THREE.SphereGeometry(1, 64, 64);
         const bubbleMaterial = new THREE.MeshPhysicalMaterial({
@@ -178,7 +205,7 @@
             dispose() { scene.remove(this.mesh); }
         }
 
-        // --- MediaPipe 邏輯 ---
+        // --- 嘴型判斷 ---
         let isBlowing = false;
         function onResults(results) {
             if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
@@ -191,6 +218,7 @@
                 const height = Math.hypot(bottomLip.x - topLip.x, bottomLip.y - topLip.y);
                 const ratio = height / width;
                 
+                // 判斷邏輯
                 if (ratio > 0.6 && height > 0.01) {
                     isBlowing = true;
                 } else {
@@ -199,31 +227,12 @@
             }
         }
 
-        const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
-        faceMesh.setOptions({
-            maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5
-        });
-        faceMesh.onResults(onResults);
-
-        // 初始化相機但不自動啟動
-        cameraUtils = new Camera(videoElement, {
-            onFrame: async () => { await faceMesh.send({image: videoElement}); },
-            width: 640, height: 480
-        });
-
-        // --- 動畫循環 ---
-        document.addEventListener('mousemove', (e) => {
-            const x = (e.clientX / window.innerWidth) * 2 - 1;
-            windVector.x += x * 0.05;
-        });
-        document.addEventListener('touchmove', (e) => {
-             const x = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
-             windVector.x += x * 0.05;
-        });
-
+        // --- 動畫 ---
         function animate() {
             requestAnimationFrame(animate);
             time += 0.01;
+            
+            // 風場
             const windX = Math.sin(time) * 0.5 + Math.sin(time * 0.3) * 0.3;
             const windZ = Math.cos(time * 0.8) * 0.2;
             windVector.set(windX, 0, windZ);
