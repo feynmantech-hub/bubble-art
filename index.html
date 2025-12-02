@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D 吹泡泡互動藝術 (V5.1)</title>
+    <title>3D 泡泡藝術 V6.0 (深空版)</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; font-family: "微軟正黑體", sans-serif; user-select: none; }
+        body { margin: 0; overflow: hidden; background-color: #111; font-family: "微軟正黑體", sans-serif; user-select: none; }
         
         /* 介面層 */
         #ui-layer {
@@ -14,37 +14,50 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
 
-        /* 開始畫面 */
-        #start-screen {
-            pointer-events: auto; background: rgba(0,0,0,0.75);
-            padding: 40px; border-radius: 20px; text-align: center;
-            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
+        /* 版本標記 (讓你知道更新成功沒) */
+        #version-tag {
+            position: absolute; top: 10px; right: 10px; color: rgba(255,255,255,0.3); font-size: 12px;
         }
+
+        #start-screen {
+            pointer-events: auto; background: rgba(20,20,30,0.85);
+            padding: 40px; border-radius: 20px; text-align: center;
+            backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        h1 {
+            background: linear-gradient(to right, #a18cd1, #fbc2eb);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            margin: 0 0 10px 0; font-size: 2rem;
+        }
+
         #btn-start {
-            background: linear-gradient(135deg, #ff9a44, #fc6076); /* 改用暖色系按鈕 */
-            color: white; border: none; padding: 15px 40px; font-size: 1.5rem;
-            border-radius: 30px; cursor: pointer; margin-top: 20px;
-            box-shadow: 0 4px 15px rgba(252, 96, 118, 0.4); transition: transform 0.2s;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white; border: none; padding: 15px 50px; font-size: 1.2rem;
+            border-radius: 30px; cursor: pointer; margin-top: 20px; font-weight: bold;
+            box-shadow: 0 4px 15px rgba(118, 75, 162, 0.4); transition: transform 0.2s;
         }
         #btn-start:active { transform: scale(0.95); }
 
-        /* 指引文字 */
         #instructions {
             position: absolute; top: 20px; width: 100%; text-align: center;
             opacity: 0; transition: opacity 1s; pointer-events: none;
             text-shadow: 0 2px 4px rgba(0,0,0,0.8); color: white;
         }
-        .hint-text { font-size: 1.2rem; margin: 5px; color: #fff; font-weight: bold; }
-        .sub-hint { font-size: 0.9rem; color: rgba(255,255,255,0.7); }
+        .hint-text { font-size: 1.2rem; margin: 5px; color: #fff; font-weight: bold; letter-spacing: 1px; }
+        .sub-hint { font-size: 0.9rem; color: rgba(255,255,255,0.6); }
 
-        /* 麥克風音量條 */
+        /* 音量條 */
         #mic-indicator {
-            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            width: 200px; height: 8px; background: rgba(255,255,255,0.1);
-            border-radius: 4px; overflow: hidden; opacity: 0; transition: opacity 1s;
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+            width: 200px; height: 6px; background: rgba(255,255,255,0.1);
+            border-radius: 3px; overflow: hidden; opacity: 0; transition: opacity 1s;
         }
         #mic-level {
-            width: 0%; height: 100%; background: linear-gradient(90deg, #00ff88, #00ccff); transition: width 0.05s;
+            width: 0%; height: 100%; 
+            background: linear-gradient(90deg, #00c6ff, #0072ff); 
+            transition: width 0.05s;
         }
 
         video { position: absolute; opacity: 0; pointer-events: none; }
@@ -57,14 +70,15 @@
 <body>
 
     <div id="ui-layer">
+        <div id="version-tag">V6.0 Midnight</div>
         <div id="start-screen">
-            <h1 style="color:white; margin:0;">✨ 夢幻泡泡藝術</h1>
-            <p style="color:#ccc;">需要相機與麥克風權限</p>
-            <button id="btn-start" onclick="initExperience()">開始體驗</button>
+            <h1>🌌 深空泡泡藝術</h1>
+            <p style="color:#aaa;">請允許相機與麥克風權限</p>
+            <button id="btn-start" onclick="initExperience()">進入體驗</button>
         </div>
         <div id="instructions">
-            <div class="hint-text">😮 對著麥克風「嘟嘴」吹氣</div>
-            <div class="sub-hint">👆 點擊泡泡可以戳破它</div>
+            <div class="hint-text">😮 對著麥克風「呼呼」吹氣</div>
+            <div class="sub-hint">👆 點擊泡泡戳破它</div>
         </div>
         <div id="mic-indicator"><div id="mic-level"></div></div>
     </div>
@@ -87,7 +101,7 @@
                 document.getElementById('input-video').srcObject = stream;
                 document.getElementById('input-video').play();
                 setupAudio(stream);
-                initThreeJS(); // 先初始化 3D 才能建立材質
+                initThreeJS(); 
                 initAI(document.getElementById('input-video'));
                 
                 document.getElementById('start-screen').style.display = 'none';
@@ -95,7 +109,7 @@
                 document.getElementById('mic-indicator').style.opacity = 1;
                 window.addEventListener('pointerdown', onPointerDown);
             } catch (err) {
-                alert("啟動失敗，請檢查權限設定。\n錯誤: " + err.message);
+                alert("啟動失敗: " + err.message);
                 btn.innerText = "重試";
             }
         }
@@ -115,7 +129,7 @@
             let sum = 0;
             for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
             micVolume = sum / dataArray.length;
-            document.getElementById('mic-level').style.width = Math.min(micVolume*1.5, 100) + '%'; //稍微放大顯示
+            document.getElementById('mic-level').style.width = Math.min(micVolume*1.5, 100) + '%';
             isBlowingMic = micVolume > 15; 
         }
 
@@ -130,49 +144,44 @@
             }
         }
 
-        // --- 核心材質定義 (移到全域以便初始化後修改) ---
+        // --- 泡泡材質 (V6: 強化虹彩與透光) ---
         const bubbleGeo = new THREE.SphereGeometry(1, 64, 64);
-        // 使用 MeshPhysicalMaterial 實現真實感
         let bubbleMat = new THREE.MeshPhysicalMaterial({
             color: 0xffffff, 
-            transmission: 1,  // 完全透光
-            opacity: 1,
+            transmission: 1.0,  
+            opacity: 1.0,
             transparent: true,
-            roughness: 0,     // 表面極致光滑
-            metalness: 0,
-            thickness: 0.1,   // 薄壁效果
-            ior: 1.33,        // 水的折射率
-            reflectivity: 1,  // 高反射
-            iridescence: 1,   // 開啟虹彩 (薄膜干涉)
-            iridescenceIOR: 1.3, // 虹彩折射率
-            iridescenceThicknessRange: [100, 400], // 薄膜厚度範圍(奈米)，產生不同顏色
-            envMapIntensity: 1.5 // 環境反射強度
+            roughness: 0.0,
+            metalness: 0.1,
+            thickness: 0.2, 
+            ior: 1.5,
+            reflectivity: 1,
+            iridescence: 1.0,   // 虹彩強度
+            iridescenceIOR: 1.33,
+            iridescenceThicknessRange: [100, 800], // 增加厚度範圍，讓顏色更豐富
+            envMapIntensity: 2.0 // 增強環境反射
         });
 
         function initThreeJS() {
             scene = new THREE.Scene();
             
-            // --- 新背景設計: 魔幻黃昏 ---
+            // --- V6 新背景: 深邃夜空漸層 ---
+            // 這種深色背景能最大程度凸顯泡泡的亮光與彩虹色
             const canvas = document.createElement('canvas');
-            canvas.width = 512; canvas.height = 512; // 解析度提高一點，反射比較好看
+            canvas.width = 512; canvas.height = 512;
             const context = canvas.getContext('2d');
-            // 建立垂直漸層: 深藍紫色 -> 夕陽橘紅
             const gradient = context.createLinearGradient(0, 0, 0, 512);
-            gradient.addColorStop(0, '#2c3e50'); // 深藍灰
-            gradient.addColorStop(0.5, '#4ca1af'); // 過渡藍
-            gradient.addColorStop(1, '#fd746c'); // 夕陽紅
+            gradient.addColorStop(0, '#0f0c29');   // 夜空黑紫
+            gradient.addColorStop(0.5, '#302b63'); // 深藍
+            gradient.addColorStop(1, '#24243e');   // 底部深灰藍
             context.fillStyle = gradient;
             context.fillRect(0, 0, 512, 512);
             
-            // 將 Canvas 轉為紋理
             const bgTexture = new THREE.CanvasTexture(canvas);
-            bgTexture.mapping = THREE.EquirectangularReflectionMapping; // 設定為反射映射模式
+            bgTexture.mapping = THREE.EquirectangularReflectionMapping;
 
-            // 設定場景背景
             scene.background = bgTexture;
-            
-            // --- 關鍵: 將背景紋理設為泡泡的環境反射貼圖 ---
-            bubbleMat.envMap = bgTexture;
+            bubbleMat.envMap = bgTexture; // 泡泡反射這個夜空
             bubbleMat.needsUpdate = true;
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 100);
@@ -181,25 +190,29 @@
             renderer = new THREE.WebGLRenderer({antialias: true});
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.toneMapping = THREE.ACESFilmicToneMapping; // 電影感色調映射
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
             document.body.appendChild(renderer.domElement);
 
-            // 燈光
-            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-            const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-            dirLight.position.set(-5, 10, 5); // 光從側面打過來，增加立體感
+            scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 3);
+            dirLight.position.set(-5, 10, 5);
             scene.add(dirLight);
+            
+            // 增加背光，讓泡泡輪廓更亮
+            const backLight = new THREE.DirectionalLight(0xaaaaff, 2);
+            backLight.position.set(0, -5, -5);
+            scene.add(backLight);
 
             animate();
         }
 
         class Bubble {
             constructor() {
-                this.mesh = new THREE.Mesh(bubbleGeo, bubbleMat); // 所有泡泡共用一個材質實體(效能較好)
-                const size = 0.2 + Math.random() * 0.35;
+                this.mesh = new THREE.Mesh(bubbleGeo, bubbleMat);
+                const size = 0.25 + Math.random() * 0.3; // 泡泡稍微變大一點
                 this.mesh.scale.set(size, size, size);
-                this.mesh.position.set((Math.random()-0.5)*0.6, -2.5, 0);
-                this.speedY = 0.015 + Math.random() * 0.02;
+                this.mesh.position.set((Math.random()-0.5)*0.8, -2.5, 0);
+                this.speedY = 0.01 + Math.random() * 0.02;
                 this.wobbleOffset = Math.random() * 100;
                 this.isPopping = false;
                 this.popScale = 1.0;
@@ -207,36 +220,28 @@
             }
             update() {
                 if (this.isPopping) {
-                    this.popScale *= 1.15; // 爆破時快速變大
+                    this.popScale *= 1.2;
                     this.mesh.scale.setScalar(this.popScale * this.mesh.scale.x);
-                    // 這裡無法單獨調整透明度，因為共用材質。利用變大移出畫面來模擬消失
-                    return (this.popScale < 3);
+                    // 快速縮小直到看不見
+                    if(this.popScale > 5) { return false; } 
+                    return true;
                 }
-                // 風速影響 (音量越大，上升越快)
-                const windForce = (micVolume / 100) * 0.08; 
+                const windForce = (micVolume / 100) * 0.1; 
                 this.mesh.position.y += this.speedY + windForce; 
-                // 左右擺動
-                this.mesh.position.x += Math.sin(Date.now()*0.0015 + this.wobbleOffset) * 0.01;
-                // 輕微形變
+                this.mesh.position.x += Math.sin(Date.now()*0.001 + this.wobbleOffset) * 0.01;
                 const wobble = Math.sin(Date.now()*0.003 + this.wobbleOffset)*0.05;
                 this.mesh.scale.set(this.mesh.scale.x+wobble*0.01, this.mesh.scale.y-wobble*0.01, this.mesh.scale.z);
                 
                 return (this.mesh.position.y < 6);
             }
-            pop() { 
-                if(!this.isPopping) {
-                    this.isPopping = true;
-                    // 若要獨立爆破透明度，需在 constructor clone 材質，但較耗效能
-                }
-            }
+            pop() { if(!this.isPopping) this.isPopping = true; }
             dispose() { scene.remove(this.mesh); }
         }
 
         function animate() {
             requestAnimationFrame(animate);
             updateMic();
-            // 稍微降低生成頻率，讓畫面不要太擠
-            if ((isBlowingMouth || isBlowingMic) && Math.random() > 0.88) bubbles.push(new Bubble());
+            if ((isBlowingMouth || isBlowingMic) && Math.random() > 0.85) bubbles.push(new Bubble());
             for (let i = bubbles.length - 1; i >= 0; i--) {
                 if (!bubbles[i].update()) { bubbles[i].dispose(); bubbles.splice(i, 1); }
             }
