@@ -1,26 +1,111 @@
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D 泡泡 (含縮放功能)</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #dcbfe0; /* 背景色模擬你的截圖 */ }
+        canvas { display: block; }
+        #instruction {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-family: sans-serif;
+            font-size: 1.2rem;
+            pointer-events: none; /* 讓滑鼠點擊穿透文字 */
+            text-shadow: 0px 0px 5px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
 
-// 1. 初始化 Controls
-const controls = new OrbitControls(camera, renderer.domElement);
+    <div id="instruction">
+        😮 試著滑動滾輪或雙指縮放<br>
+        👇 點擊泡泡戳破它
+    </div>
 
-// 2. 啟用縮放 (預設為 true，這裡顯式設定以確保開啟)
-controls.enableZoom = true;
+    <script type="module">
+        // 1. 從網路 (CDN) 引入 Three.js 和 OrbitControls
+        import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+        import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
 
-// 3. 設定縮放速度 (電腦滾輪)
-controls.zoomSpeed = 1.0; 
+        // --- 初始化場景 ---
+        const scene = new THREE.Scene();
+        
+        // --- 設定相機 ---
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        // 【修改點 1】調整相機距離
+        // 原本可能太近 (例如 z=5)，現在改遠一點，泡泡看起來就變小了
+        camera.position.z = 8; 
 
-// 4. 重要：設定縮放範圍 (避免縮太近穿模，或縮太遠看不見)
-controls.minDistance = 5;  // 最近距離 (防止穿過泡泡)
-controls.maxDistance = 50; // 最遠距離
+        // --- 設定渲染器 ---
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio); // 優化手機解析度
+        document.body.appendChild(renderer.domElement);
 
-// 5. 如果你不希望使用者旋轉視角，只希望縮放，可以關閉旋轉
-// controls.enableRotate = false; 
+        // --- 【修改點 2】加入 OrbitControls (縮放/旋轉控制) ---
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; // 啟用阻尼 (讓滑動有慣性，感覺更平滑)
+        controls.dampingFactor = 0.05;
+        controls.enableZoom = true;    // 啟用縮放 (這就是你要的功能)
+        controls.zoomSpeed = 1.0;      // 縮放速度
+        controls.minDistance = 3;      // 最近能縮到多近 (防止穿模)
+        controls.maxDistance = 20;     // 最遠能拉到多遠
+        
+        // 如果你不希望使用者旋轉視角，只想縮放，把下面這行取消註解：
+        // controls.enableRotate = false; 
 
-// 6. 在你的 animate 迴圈中加入 update
-function animate() {
-    requestAnimationFrame(animate);
-    
-    controls.update(); // 必須加入這行
-    
-    renderer.render(scene, camera);
-}
+        // --- 建立泡泡 (簡單模擬) ---
+        const geometry = new THREE.SphereGeometry(2, 64, 64);
+        const material = new THREE.MeshPhysicalMaterial({
+            color: 0xffffff,
+            transmission: 0.9,  // 透光度
+            opacity: 1,
+            metalness: 0,
+            roughness: 0,
+            ior: 1.5,           // 折射率
+            thickness: 0.1,
+            specularIntensity: 1,
+            clearcoat: 1,
+        });
+        const bubble = new THREE.Mesh(geometry, material);
+        scene.add(bubble);
+
+        // --- 加入燈光 ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
+        directionalLight.position.set(2, 5, 5);
+        scene.add(directionalLight);
+
+        // --- 視窗大小改變時的處理 ---
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- 動畫迴圈 ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 讓泡泡自己慢慢轉
+            bubble.rotation.y += 0.005;
+            bubble.rotation.x += 0.002;
+
+            // 【修改點 3】必須在每一幀更新 Controls
+            controls.update();
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
