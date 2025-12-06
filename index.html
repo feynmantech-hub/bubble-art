@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D 泡泡 V7.0 (光影與方向)</title>
+    <title>3D 泡泡 V7.1 (明亮大泡泡)</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: "微軟正黑體", sans-serif; user-select: none; }
         
@@ -18,22 +18,22 @@
         }
 
         #start-screen {
-            pointer-events: auto; background: rgba(10,10,10,0.9);
+            pointer-events: auto; background: rgba(20,20,20,0.9);
             padding: 40px; border-radius: 20px; text-align: center;
-            border: 1px solid #333; box-shadow: 0 0 50px rgba(255,165,0,0.2);
+            border: 1px solid #444; box-shadow: 0 0 50px rgba(255,200,0,0.3);
         }
 
         h1 {
             color: #fff; margin: 0 0 10px 0; font-size: 2rem;
-            text-shadow: 0 0 10px #ffaa00;
+            text-shadow: 0 0 10px #ffcc00;
         }
 
         #btn-start {
-            background: #ffaa00; color: #000; border: none; padding: 15px 50px; font-size: 1.2rem;
+            background: linear-gradient(135deg, #ffaa00, #ffdd00); color: #000; border: none; padding: 15px 50px; font-size: 1.2rem;
             border-radius: 30px; cursor: pointer; margin-top: 20px; font-weight: bold;
             box-shadow: 0 0 20px rgba(255,170,0,0.5); transition: 0.2s;
         }
-        #btn-start:hover { background: #ffcc00; box-shadow: 0 0 30px rgba(255,170,0,0.8); }
+        #btn-start:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,170,0,0.8); }
 
         #instructions {
             position: absolute; top: 20px; width: 100%; text-align: center;
@@ -41,20 +41,19 @@
             color: white; text-shadow: 0 2px 4px #000;
         }
         
-        /* 視覺化的方向指示器 */
         #wind-arrow {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 5rem; color: rgba(255,255,255,0.1); font-weight: bold;
+            font-size: 5rem; color: rgba(255,255,255,0.2); font-weight: bold;
             opacity: 0; transition: opacity 0.3s; pointer-events: none;
         }
 
         #mic-indicator {
             position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-            width: 200px; height: 4px; background: #333;
-            border-radius: 2px; overflow: hidden; opacity: 0; transition: opacity 1s;
+            width: 200px; height: 6px; background: #333;
+            border-radius: 3px; overflow: hidden; opacity: 0; transition: opacity 1s;
         }
         #mic-level {
-            width: 0%; height: 100%; background: #ffaa00; transition: width 0.05s;
+            width: 0%; height: 100%; background: linear-gradient(90deg, #ffaa00, #ffff00); transition: width 0.05s;
         }
 
         video { position: absolute; opacity: 0; pointer-events: none; }
@@ -67,16 +66,18 @@
 <body>
 
     <div id="ui-layer">
-        <div id="version-tag">V7.0 Directional Light</div>
-        <div id="wind-arrow">➤</div> <div id="start-screen">
-            <h1>💡 暗房光影版</h1>
-            <p style="color:#888;">請嘗試左右轉頭吹氣</p>
-            <button id="btn-start" onclick="initExperience()">開啟燈光</button>
+        <div id="version-tag">V7.1 Bright & Big</div>
+        <div id="wind-arrow">➤</div>
+        
+        <div id="start-screen">
+            <h1>✨ 明亮大泡泡版</h1>
+            <p style="color:#aaa;">請嘗試左右轉頭吹氣</p>
+            <button id="btn-start" onclick="initExperience()">開啟體驗</button>
         </div>
 
         <div id="instructions">
-            <div style="font-size: 1.2rem; font-weight: bold;">😮 試著往右或往左吹氣</div>
-            <div style="font-size: 0.9rem; color: #aaa;">燈光在右側，觀察泡泡的高光</div>
+            <div style="font-size: 1.3rem; font-weight: bold; margin-bottom:5px;">😮 試著往右或往左吹氣</div>
+            <div style="font-size: 1rem; color: #ccc;">👆 點擊大泡泡戳破它</div>
         </div>
         <div id="mic-indicator"><div id="mic-level"></div></div>
     </div>
@@ -88,9 +89,7 @@
         let bubbles = [];
         let audioContext, analyser, dataArray;
         let isBlowingMouth = false, isBlowingMic = false, micVolume = 0;
-        
-        // 關鍵變數：風向與嘴巴位置
-        let windDirectionX = 0; // -1 (左) ~ 1 (右)
+        let windDirectionX = 0;
         let mouthPosition = new THREE.Vector3(0, -2, 0); 
         
         const raycaster = new THREE.Raycaster();
@@ -154,7 +153,7 @@
             transmission: 1.0,  
             opacity: 1.0,
             transparent: true,
-            roughness: 0.0,    // 極度光滑，為了反射點光源
+            roughness: 0.0,
             metalness: 0.1,
             thickness: 0.1, 
             ior: 1.5,
@@ -162,15 +161,13 @@
             iridescence: 1.0,
             iridescenceIOR: 1.33,
             iridescenceThicknessRange: [100, 800],
-            clearcoat: 1.0,     // 增加亮光漆層，讓高光更銳利
+            clearcoat: 1.0,
             clearcoatRoughness: 0
         });
 
         function initThreeJS() {
             scene = new THREE.Scene();
-            
-            // 1. 背景：純黑
-            scene.background = new THREE.Color(0x000000);
+            scene.background = new THREE.Color(0x000000); // 純黑背景
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 100);
             camera.position.z = 5;
@@ -179,21 +176,22 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2; // 稍微增加整體曝光
             document.body.appendChild(renderer.domElement);
 
-            // 2. 燈光系統 (暗房風格)
+            // --- V7.1 燈光增強 ---
             
-            // 微弱的環境光，確保泡泡不會完全變黑
-            scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+            // 1. 環境光：增強，讓暗部有細節
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6)); 
 
-            // 主角：右側點光源 (模擬單燈攝影)
-            const pointLight = new THREE.PointLight(0xffaa00, 5, 100); // 橘黃色強光
-            pointLight.position.set(10, 2, 5); // 放在右側、稍微前方
+            // 2. 主角點光源 (右側)：大幅增強亮度
+            const pointLight = new THREE.PointLight(0xffaa00, 15, 100); 
+            pointLight.position.set(10, 2, 5);
             scene.add(pointLight);
 
-            // 輔助輪廓光 (背光)，讓泡泡邊緣更清楚
-            const rimLight = new THREE.DirectionalLight(0x4444ff, 2); // 藍色冷光
-            rimLight.position.set(-5, 0, -5); // 左後方
+            // 3. 輪廓光 (左後)：增強
+            const rimLight = new THREE.DirectionalLight(0x4444ff, 5); 
+            rimLight.position.set(-5, 0, -5);
             scene.add(rimLight);
 
             animate();
@@ -202,23 +200,24 @@
         class Bubble {
             constructor() {
                 this.mesh = new THREE.Mesh(bubbleGeo, bubbleMat);
-                const size = 0.2 + Math.random() * 0.3;
+                
+                // --- V7.1 泡泡變大 ---
+                // 舊版約 0.2~0.5，新版約 0.6~1.2
+                const size = 0.6 + Math.random() * 0.6;
                 this.mesh.scale.set(size, size, size);
                 
-                // 3. 生成位置：跟隨嘴巴位置 (加上一點隨機偏移)
-                // 如果偵測不到嘴巴，預設從下方
-                const startX = mouthPosition.x * 3; // 放大比例以對應螢幕寬度
+                // 生成位置：跟隨嘴巴
+                const startX = mouthPosition.x * 3; 
                 const startY = mouthPosition.y * 3;
                 this.mesh.position.set(startX + (Math.random()-0.5)*0.2, startY, 0);
                 
-                // 4. 初始速度：受到當前「風向」影響
-                // 基礎向上速度 + 風向水平速度
-                const windForce = windDirectionX * 0.08; // 風力係數
+                // 初始速度：受風向影響
+                const windForce = windDirectionX * 0.08;
                 
                 this.velocity = new THREE.Vector3(
-                    windForce + (Math.random()-0.5)*0.01, // X軸速度 (受頭轉向影響大)
-                    0.03 + Math.random() * 0.02,          // Y軸速度 (向上)
-                    (Math.random()-0.5)*0.01              // Z軸速度 (前後微動)
+                    windForce + (Math.random()-0.5)*0.01, 
+                    0.03 + Math.random() * 0.02,          
+                    (Math.random()-0.5)*0.01              
                 );
 
                 this.wobbleOffset = Math.random() * 100;
@@ -235,23 +234,20 @@
                     return true;
                 }
 
-                // 持續受到風力影響 (音量增強推力)
+                // 風力與聲音推力
                 const boost = (micVolume / 100) * 0.005;
                 this.velocity.y += boost;
-                this.velocity.x += windDirectionX * 0.002; // 持續施加風力
+                this.velocity.x += windDirectionX * 0.002; 
 
                 this.mesh.position.add(this.velocity);
-
-                // 物理阻力
                 this.velocity.multiplyScalar(0.98); 
-                // 始終保持一點點向上浮力
-                this.velocity.y += 0.0005;
+                this.velocity.y += 0.0005; // 浮力
 
-                // 擺動效果
                 const wobble = Math.sin(Date.now()*0.005 + this.wobbleOffset)*0.05;
                 this.mesh.scale.setScalar(this.mesh.scale.x + wobble*0.002);
                 
-                return (this.mesh.position.y < 6 && Math.abs(this.mesh.position.x) < 8);
+                // 擴大移除邊界，因為泡泡變大了
+                return (this.mesh.position.y < 7 && Math.abs(this.mesh.position.x) < 10);
             }
             pop() { if(!this.isPopping) this.isPopping = true; }
             dispose() { scene.remove(this.mesh); }
@@ -263,10 +259,10 @@
             
             // 視覺化箭頭更新
             const arrow = document.getElementById('wind-arrow');
-            if (Math.abs(windDirectionX) > 0.3) {
-                arrow.style.opacity = 0.5;
+            if (Math.abs(windDirectionX) > 0.25) {
+                arrow.style.opacity = 0.6;
                 arrow.innerText = windDirectionX > 0 ? "➤" : "◄";
-                arrow.style.transform = `translate(-50%, -50%) translateX(${windDirectionX * 50}px)`;
+                arrow.style.transform = `translate(-50%, -50%) translateX(${windDirectionX * 60}px)`;
             } else {
                 arrow.style.opacity = 0;
             }
@@ -287,31 +283,18 @@
                 if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
                     const lm = results.multiFaceLandmarks[0];
 
-                    // A. 嘴型判斷 (吹氣)
+                    // 嘴型
                     const mouthH = Math.hypot(lm[13].x - lm[14].x, lm[13].y - lm[14].y);
                     const mouthW = Math.hypot(lm[61].x - lm[291].x, lm[61].y - lm[291].y);
                     isBlowingMouth = ((mouthH/mouthW) > 0.35 && mouthH > 0.01);
 
-                    // B. 頭部方向判斷 (左右轉)
-                    // 比較左臉頰(454)與右臉頰(234)的 Z 深度 (距離相機的遠近)
-                    // 注意：MediaPipe 鏡像模式下，左右可能相反，需實測調整
-                    // 邏輯：看鼻頭(1)的 X 座標相對於兩耳中心的位置
-                    // 或者更簡單：使用臉頰的深度差 (Z軸)
-                    
-                    const leftFaceZ = lm[454].z; // 畫面左邊(使用者的右臉?)
-                    const rightFaceZ = lm[234].z; // 畫面右邊
-                    
-                    // 計算旋轉量 (Yaw)
-                    // 如果使用者往右轉(畫面右邊)，左臉頰會靠近相機(z變小)，右臉頰遠離(z變大)
-                    // 這裡的係數 10 是為了放大旋轉效果
+                    // 頭部方向
+                    const leftFaceZ = lm[454].z;
+                    const rightFaceZ = lm[234].z;
                     const yaw = (leftFaceZ - rightFaceZ) * 10; 
-                    
-                    // 平滑過渡風向值 (避免抖動)
                     windDirectionX += (yaw - windDirectionX) * 0.1;
 
-                    // C. 更新嘴巴位置 (讓泡泡從嘴裡出來)
-                    // 轉換 MediaPipe 座標 (0~1) 到 Three.js 座標 (-1~1)
-                    // 上下顛倒修正：MediaPipe Y向下增加，Three.js Y向上增加
+                    // 嘴巴位置
                     const mouthX = -(lm[13].x - 0.5) * 2; 
                     const mouthY = -(lm[13].y - 0.5) * 2; 
                     mouthPosition.set(mouthX, mouthY, 0);
