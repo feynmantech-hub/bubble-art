@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D 泡泡 V7.1 (明亮大泡泡)</title>
+    <title>3D 泡泡 V7.2 (超亮巨大版)</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: "微軟正黑體", sans-serif; user-select: none; }
         
@@ -14,46 +14,46 @@
         }
 
         #version-tag {
-            position: absolute; top: 10px; right: 10px; color: #555; font-size: 12px;
+            position: absolute; top: 10px; right: 10px; color: #888; font-size: 12px; font-weight: bold;
         }
 
         #start-screen {
-            pointer-events: auto; background: rgba(20,20,20,0.9);
-            padding: 40px; border-radius: 20px; text-align: center;
-            border: 1px solid #444; box-shadow: 0 0 50px rgba(255,200,0,0.3);
+            pointer-events: auto; background: rgba(30,30,30,0.9);
+            padding: 50px; border-radius: 25px; text-align: center;
+            border: 2px solid #ffdd00; box-shadow: 0 0 80px rgba(255,220,0,0.5);
         }
 
         h1 {
-            color: #fff; margin: 0 0 10px 0; font-size: 2rem;
-            text-shadow: 0 0 10px #ffcc00;
+            color: #fff; margin: 0 0 15px 0; font-size: 2.5rem;
+            text-shadow: 0 0 20px #ffdd00;
         }
 
         #btn-start {
-            background: linear-gradient(135deg, #ffaa00, #ffdd00); color: #000; border: none; padding: 15px 50px; font-size: 1.2rem;
-            border-radius: 30px; cursor: pointer; margin-top: 20px; font-weight: bold;
-            box-shadow: 0 0 20px rgba(255,170,0,0.5); transition: 0.2s;
+            background: linear-gradient(to right, #ffcc00, #ffeb3b); color: #000; border: none; padding: 20px 60px; font-size: 1.5rem;
+            border-radius: 40px; cursor: pointer; margin-top: 30px; font-weight: bold;
+            box-shadow: 0 10px 30px rgba(255,200,0,0.6); transition: 0.2s;
         }
-        #btn-start:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,170,0,0.8); }
+        #btn-start:hover { transform: scale(1.05); box-shadow: 0 15px 40px rgba(255,220,0,0.8); }
 
         #instructions {
             position: absolute; top: 20px; width: 100%; text-align: center;
             opacity: 0; transition: opacity 1s; pointer-events: none;
-            color: white; text-shadow: 0 2px 4px #000;
+            color: white; text-shadow: 0 2px 10px #000;
         }
         
         #wind-arrow {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 5rem; color: rgba(255,255,255,0.2); font-weight: bold;
+            font-size: 8rem; color: rgba(255,255,255,0.3); font-weight: bold;
             opacity: 0; transition: opacity 0.3s; pointer-events: none;
         }
 
         #mic-indicator {
             position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-            width: 200px; height: 6px; background: #333;
-            border-radius: 3px; overflow: hidden; opacity: 0; transition: opacity 1s;
+            width: 300px; height: 10px; background: #333;
+            border-radius: 5px; overflow: hidden; opacity: 0; transition: opacity 1s;
         }
         #mic-level {
-            width: 0%; height: 100%; background: linear-gradient(90deg, #ffaa00, #ffff00); transition: width 0.05s;
+            width: 0%; height: 100%; background: linear-gradient(90deg, #ffdd00, #ffffff); transition: width 0.05s;
         }
 
         video { position: absolute; opacity: 0; pointer-events: none; }
@@ -66,18 +66,18 @@
 <body>
 
     <div id="ui-layer">
-        <div id="version-tag">V7.1 Bright & Big</div>
+        <div id="version-tag">V7.2 Ultra Bright & Giant</div>
         <div id="wind-arrow">➤</div>
         
         <div id="start-screen">
-            <h1>✨ 明亮大泡泡版</h1>
-            <p style="color:#aaa;">請嘗試左右轉頭吹氣</p>
+            <h1>🌟 超亮巨大泡泡</h1>
+            <p style="color:#ccc; font-size: 1.2rem;">請嘗試左右轉頭吹氣</p>
             <button id="btn-start" onclick="initExperience()">開啟體驗</button>
         </div>
 
         <div id="instructions">
-            <div style="font-size: 1.3rem; font-weight: bold; margin-bottom:5px;">😮 試著往右或往左吹氣</div>
-            <div style="font-size: 1rem; color: #ccc;">👆 點擊大泡泡戳破它</div>
+            <div style="font-size: 1.8rem; font-weight: bold; margin-bottom:10px;">😮 試著往右或往左吹氣</div>
+            <div style="font-size: 1.2rem; color: #eee;">👆 點擊泡泡戳破它</div>
         </div>
         <div id="mic-indicator"><div id="mic-level"></div></div>
     </div>
@@ -90,7 +90,7 @@
         let audioContext, analyser, dataArray;
         let isBlowingMouth = false, isBlowingMic = false, micVolume = 0;
         let windDirectionX = 0;
-        let mouthPosition = new THREE.Vector3(0, -2, 0); 
+        let mouthPosition = new THREE.Vector3(0, -3, 0); 
         
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
@@ -131,14 +131,18 @@
             let sum = 0;
             for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
             micVolume = sum / dataArray.length;
-            document.getElementById('mic-level').style.width = Math.min(micVolume*1.5, 100) + '%';
-            isBlowingMic = micVolume > 15; 
+            document.getElementById('mic-level').style.width = Math.min(micVolume*1.2, 100) + '%';
+            isBlowingMic = micVolume > 12; 
         }
 
         function onPointerDown(event) {
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
+            
+            // V7.2: 增加射線檢測的容錯率，更容易點到大泡泡
+            raycaster.params.Sphere.threshold = 0.5;
+
             const intersects = raycaster.intersectObjects(bubbles.map(b => b.mesh));
             if (intersects.length > 0) {
                 const targetBubble = bubbles.find(b => b.mesh === intersects[0].object);
@@ -154,45 +158,53 @@
             opacity: 1.0,
             transparent: true,
             roughness: 0.0,
-            metalness: 0.1,
-            thickness: 0.1, 
+            metalness: 0.2, // 稍微增加金屬感，讓反光更強
+            thickness: 0.2, 
             ior: 1.5,
             reflectivity: 1,
-            iridescence: 1.0,
+            iridescence: 1.2, // 增強虹彩
             iridescenceIOR: 1.33,
-            iridescenceThicknessRange: [100, 800],
+            iridescenceThicknessRange: [100, 1000],
             clearcoat: 1.0,
             clearcoatRoughness: 0
         });
 
         function initThreeJS() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x000000); // 純黑背景
+            scene.background = new THREE.Color(0x000000);
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 100);
-            camera.position.z = 5;
+            camera.position.z = 6; // V7.2: 相機稍微拉遠，以容納更大的泡泡
 
             renderer = new THREE.WebGLRenderer({antialias: true});
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.2; // 稍微增加整體曝光
+            
+            // V7.2: 大幅增加整體曝光度
+            renderer.toneMappingExposure = 2.5; 
+            
             document.body.appendChild(renderer.domElement);
 
-            // --- V7.1 燈光增強 ---
+            // --- V7.2 燈光極致增強 ---
             
-            // 1. 環境光：增強，讓暗部有細節
-            scene.add(new THREE.AmbientLight(0xffffff, 0.6)); 
+            // 1. 環境光：大幅增強
+            scene.add(new THREE.AmbientLight(0xffffff, 2.0)); 
 
-            // 2. 主角點光源 (右側)：大幅增強亮度
-            const pointLight = new THREE.PointLight(0xffaa00, 15, 100); 
-            pointLight.position.set(10, 2, 5);
+            // 2. 主角點光源：強度翻倍，範圍加大
+            const pointLight = new THREE.PointLight(0xffdd00, 50, 300); 
+            pointLight.position.set(15, 5, 10);
             scene.add(pointLight);
 
-            // 3. 輪廓光 (左後)：增強
-            const rimLight = new THREE.DirectionalLight(0x4444ff, 5); 
-            rimLight.position.set(-5, 0, -5);
+            // 3. 輪廓光：增強
+            const rimLight = new THREE.DirectionalLight(0x8888ff, 10); 
+            rimLight.position.set(-10, 0, -5);
             scene.add(rimLight);
+            
+            // 4. 底部補光 (新增)：讓泡泡底部也亮起來
+            const bottomLight = new THREE.DirectionalLight(0xffffff, 3);
+            bottomLight.position.set(0, -10, 0);
+            scene.add(bottomLight);
 
             animate();
         }
@@ -201,23 +213,22 @@
             constructor() {
                 this.mesh = new THREE.Mesh(bubbleGeo, bubbleMat);
                 
-                // --- V7.1 泡泡變大 ---
-                // 舊版約 0.2~0.5，新版約 0.6~1.2
-                const size = 0.6 + Math.random() * 0.6;
+                // --- V7.2 泡泡巨大化 ---
+                // 舊版 0.6~1.2 -> 新版 1.5~3.0 (變大 2.5 倍!)
+                const size = 1.5 + Math.random() * 1.5;
                 this.mesh.scale.set(size, size, size);
                 
-                // 生成位置：跟隨嘴巴
-                const startX = mouthPosition.x * 3; 
-                const startY = mouthPosition.y * 3;
-                this.mesh.position.set(startX + (Math.random()-0.5)*0.2, startY, 0);
+                // 生成位置
+                const startX = mouthPosition.x * 4; // 配合相機拉遠，調整座標比例
+                const startY = mouthPosition.y * 4;
+                this.mesh.position.set(startX + (Math.random()-0.5)*0.5, startY, 0);
                 
-                // 初始速度：受風向影響
-                const windForce = windDirectionX * 0.08;
+                const windForce = windDirectionX * 0.1;
                 
                 this.velocity = new THREE.Vector3(
-                    windForce + (Math.random()-0.5)*0.01, 
-                    0.03 + Math.random() * 0.02,          
-                    (Math.random()-0.5)*0.01              
+                    windForce + (Math.random()-0.5)*0.02, 
+                    0.04 + Math.random() * 0.03,          
+                    (Math.random()-0.5)*0.02              
                 );
 
                 this.wobbleOffset = Math.random() * 100;
@@ -228,26 +239,25 @@
 
             update() {
                 if (this.isPopping) {
-                    this.popScale *= 1.2;
+                    this.popScale *= 1.25;
                     this.mesh.scale.setScalar(this.popScale * this.mesh.scale.x);
-                    if(this.popScale > 5) return false;
+                    if(this.popScale > 4) return false;
                     return true;
                 }
 
-                // 風力與聲音推力
-                const boost = (micVolume / 100) * 0.005;
+                const boost = (micVolume / 100) * 0.01;
                 this.velocity.y += boost;
-                this.velocity.x += windDirectionX * 0.002; 
+                this.velocity.x += windDirectionX * 0.003; 
 
                 this.mesh.position.add(this.velocity);
-                this.velocity.multiplyScalar(0.98); 
-                this.velocity.y += 0.0005; // 浮力
+                this.velocity.multiplyScalar(0.985); 
+                this.velocity.y += 0.0008; 
 
-                const wobble = Math.sin(Date.now()*0.005 + this.wobbleOffset)*0.05;
-                this.mesh.scale.setScalar(this.mesh.scale.x + wobble*0.002);
+                const wobble = Math.sin(Date.now()*0.004 + this.wobbleOffset)*0.08;
+                this.mesh.scale.setScalar(this.mesh.scale.x + wobble*0.005);
                 
-                // 擴大移除邊界，因為泡泡變大了
-                return (this.mesh.position.y < 7 && Math.abs(this.mesh.position.x) < 10);
+                // V7.2: 擴大移除邊界 (因為泡泡很大)
+                return (this.mesh.position.y < 12 && Math.abs(this.mesh.position.x) < 15);
             }
             pop() { if(!this.isPopping) this.isPopping = true; }
             dispose() { scene.remove(this.mesh); }
@@ -257,17 +267,17 @@
             requestAnimationFrame(animate);
             updateMic();
             
-            // 視覺化箭頭更新
             const arrow = document.getElementById('wind-arrow');
-            if (Math.abs(windDirectionX) > 0.25) {
-                arrow.style.opacity = 0.6;
+            if (Math.abs(windDirectionX) > 0.2) {
+                arrow.style.opacity = 0.7;
                 arrow.innerText = windDirectionX > 0 ? "➤" : "◄";
-                arrow.style.transform = `translate(-50%, -50%) translateX(${windDirectionX * 60}px)`;
+                arrow.style.transform = `translate(-50%, -50%) translateX(${windDirectionX * 80}px)`;
             } else {
                 arrow.style.opacity = 0;
             }
 
-            if ((isBlowingMouth || isBlowingMic) && Math.random() > 0.85) bubbles.push(new Bubble());
+            // 稍微降低生成頻率，避免大泡泡太擁擠
+            if ((isBlowingMouth || isBlowingMic) && Math.random() > 0.88) bubbles.push(new Bubble());
             
             for (let i = bubbles.length - 1; i >= 0; i--) {
                 if (!bubbles[i].update()) { bubbles[i].dispose(); bubbles.splice(i, 1); }
@@ -277,24 +287,21 @@
 
         function initAI(videoElement) {
             const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
-            faceMesh.setOptions({maxNumFaces: 1, minDetectionConfidence: 0.5});
+            faceMesh.setOptions({maxNumFaces: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
             
             faceMesh.onResults((results) => {
                 if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
                     const lm = results.multiFaceLandmarks[0];
 
-                    // 嘴型
                     const mouthH = Math.hypot(lm[13].x - lm[14].x, lm[13].y - lm[14].y);
                     const mouthW = Math.hypot(lm[61].x - lm[291].x, lm[61].y - lm[291].y);
-                    isBlowingMouth = ((mouthH/mouthW) > 0.35 && mouthH > 0.01);
+                    isBlowingMouth = ((mouthH/mouthW) > 0.3 && mouthH > 0.01); // V7.2: 降低一點吹氣門檻，更容易觸發
 
-                    // 頭部方向
                     const leftFaceZ = lm[454].z;
                     const rightFaceZ = lm[234].z;
-                    const yaw = (leftFaceZ - rightFaceZ) * 10; 
-                    windDirectionX += (yaw - windDirectionX) * 0.1;
+                    const yaw = (leftFaceZ - rightFaceZ) * 12; 
+                    windDirectionX += (yaw - windDirectionX) * 0.15; // V7.2: 加快轉頭反應速度
 
-                    // 嘴巴位置
                     const mouthX = -(lm[13].x - 0.5) * 2; 
                     const mouthY = -(lm[13].y - 0.5) * 2; 
                     mouthPosition.set(mouthX, mouthY, 0);
