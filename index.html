@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D 泡泡 (V11.1 透明優化版)</title>
+    <title>3D 泡泡 (V12.0 終極透明干涉版)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
@@ -15,7 +15,8 @@
             overflow: hidden;
             width: 100%;
             height: 100%;
-            background: linear-gradient(180deg, #100520 0%, #304080 100%) !important;
+            /* 深色背景能最好地襯托高強度的干涉光 */
+            background: linear-gradient(180deg, #0a0a2a 0%, #203060 100%) !important;
             font-family: "Microsoft JhengHei", sans-serif;
             color: white;
         }
@@ -103,8 +104,8 @@
     </div>
 
     <div id="start-screen">
-        <h1 style="color:white; margin-bottom:10px;">🫧 3D 泡泡 V11.1</h1>
-        <p style="color:#aaa; font-size:0.9rem;">透明度優化版</p>
+        <h1 style="color:white; margin-bottom:10px;">🫧 3D 泡泡 V12.0</h1>
+        <p style="color:#aaa; font-size:0.9rem;">終極透明干涉版</p>
         <br>
         <button id="btn-start" disabled>正在載入 AI...</button>
     </div>
@@ -146,27 +147,29 @@
             startCamera();
         });
 
-        // --- 生成厚度紋理 ---
+        // --- 生成厚度紋理 (流動效果) ---
         function createRainbowTexture() {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
             canvas.height = 512;
             const ctx = canvas.getContext('2d');
             
+            // 使用更強烈的對比度來製造更明顯的色彩變化
             const grad = ctx.createLinearGradient(0, 0, 512, 512);
             grad.addColorStop(0, '#000000');
-            grad.addColorStop(0.5, '#888888');
+            grad.addColorStop(0.3, '#ffffff');
+            grad.addColorStop(0.7, '#000000');
             grad.addColorStop(1, '#ffffff');
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, 512, 512);
 
-            for(let i=0; i<50; i++) {
+            for(let i=0; i<60; i++) {
                 ctx.beginPath();
                 const x = Math.random() * 512;
                 const y = Math.random() * 512;
-                const r = Math.random() * 100 + 50;
+                const r = Math.random() * 120 + 30;
                 const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-                g.addColorStop(0, `rgba(255,255,255, ${Math.random()*0.5})`);
+                g.addColorStop(0, `rgba(255,255,255, ${Math.random()*0.7})`);
                 g.addColorStop(1, 'rgba(0,0,0,0)');
                 ctx.fillStyle = g;
                 ctx.arc(x, y, r, 0, Math.PI*2);
@@ -188,8 +191,9 @@
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            // 使用較高對比的色調映射
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.2;
+            renderer.toneMappingExposure = 1.0;
             document.body.appendChild(renderer.domElement);
 
             controls = new OrbitControls(camera, renderer.domElement);
@@ -201,9 +205,11 @@
             const pmremGenerator = new THREE.PMREMGenerator(renderer);
             scene.environment = pmremGenerator.fromScene(environment).texture;
 
-            const dl = new THREE.DirectionalLight(0xffffff, 2);
+            // 強光照明，激發干涉色
+            const dl = new THREE.DirectionalLight(0xffffff, 3);
             dl.position.set(5, 10, 5);
             scene.add(dl);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.2));
 
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
@@ -223,33 +229,38 @@
             });
 
             animate();
-            log("3D 引擎已啟動");
+            log("3D 引擎已啟動 (終極材質已應用)");
         }
 
-        // --- 2. 泡泡材質 (透明化修改) ---
+        // --- 2. 泡泡材質 (終極調整) ---
         const noiseMap = createRainbowTexture();
         
-        const geo = new THREE.SphereGeometry(1, 64, 64);
+        const geo = new THREE.SphereGeometry(1, 128, 128); // 最高細分
         const mat = new THREE.MeshPhysicalMaterial({
-            color: 0xffffff,
-            transmission: 1,
+            // 【修改點 1】基底顏色改為黑色，讓干涉光最突出
+            color: 0x000000, 
             
-            // 【修改點】開啟透明並降低不透明度
+            transmission: 1,
             transparent: true, 
-            opacity: 0.4,      // 數值越低越透明 (0.3~0.5 效果佳)
+            // 【修改點 2】極致透明，只留下一層薄膜感
+            opacity: 0.15,
 
             metalness: 0,
             roughness: 0,
-            ior: 1.5,
+            ior: 1.33, // 水的折射率
             thickness: 0.1,
 
+            // 虹彩干涉設定
             iridescence: 1, 
             iridescenceIOR: 1.33,
-            iridescenceThicknessRange: [200, 800],
+            // 擴大厚度範圍，產生更多樣的色彩
+            iridescenceThicknessRange: [100, 900], 
             iridescenceThicknessMap: noiseMap,
             
             clearcoat: 1,
             clearcoatRoughness: 0,
+            // 【修改點 3】增強環境反射強度，讓光澤爆發
+            envMapIntensity: 3.0,
             side: THREE.DoubleSide
         });
 
@@ -271,8 +282,9 @@
             requestAnimationFrame(animate);
             controls.update();
 
-            noiseMap.offset.y += 0.002; 
-            noiseMap.offset.x += 0.001;
+            // 加快流動速度
+            noiseMap.offset.y += 0.003; 
+            noiseMap.offset.x += 0.002;
 
             if(isBlowing && Math.random() > 0.6) { 
                 createBubble();
@@ -281,8 +293,10 @@
             for(let i=bubbles.length-1; i>=0; i--) {
                 const b = bubbles[i];
                 b.mesh.position.add(b.velocity);
-                b.mesh.position.y += Math.sin(Date.now()*0.002 + b.mesh.id)*0.01;
-                b.mesh.rotation.y += 0.01;
+                // 增加擾動感
+                b.mesh.position.y += Math.sin(Date.now()*0.003 + b.mesh.id)*0.015;
+                b.mesh.rotation.y += 0.02;
+                b.mesh.rotation.z += 0.01;
 
                 if(b.mesh.position.y > 25) {
                     scene.remove(b.mesh);
@@ -292,7 +306,7 @@
             renderer.render(scene, camera);
         }
 
-        // --- 3. 相機與 AI ---
+        // --- 3. 相機與 AI (維持高靈敏度 0.1) ---
         async function startCamera() {
             const video = document.querySelector('.input_video');
             const hudMain = document.getElementById('status-main');
@@ -316,7 +330,7 @@
                     const ratio = h / w;
                     
                     blowDirection = (0.5 - lm[1].x) * 6;
-                    hudDebug.innerText = `嘴型數值: ${ratio.toFixed(2)} (目標 > 0.1，可以向左右兩邊吹)`;
+                    hudDebug.innerText = `嘴型數值: ${ratio.toFixed(2)} (目標 > 0.1，可以向左向右吹氣)`;
 
                     if (ratio > 0.1 && h > 0.005) { 
                         isBlowing = true;
