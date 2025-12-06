@@ -3,11 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D 泡泡 (最終修復版)</title>
+    <title>3D 泡泡 (ImportMap 修復版)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
 
     <style>
         /* 強制設定背景，避免白畫面 */
@@ -29,7 +38,7 @@
             z-index: 1;
         }
 
-        /* 除錯訊息窗 (最重要) */
+        /* 除錯訊息窗 */
         #error-log {
             position: absolute;
             bottom: 0;
@@ -43,7 +52,7 @@
             overflow-y: scroll;
             z-index: 9999;
             padding: 10px;
-            pointer-events: none; /* 讓滑鼠穿透 */
+            pointer-events: none; 
             display: block;
         }
 
@@ -127,7 +136,6 @@
             console.log(msg);
         }
         
-        // 捕捉所有錯誤顯示在螢幕上
         window.onerror = function(message, source, lineno, colno, error) {
             screenLog(`錯誤: ${message} (Line: ${lineno})`, '#ff3333');
             return false;
@@ -135,7 +143,6 @@
 
         screenLog("頁面載入中...");
         
-        // 檢查 MediaPipe 是否載入
         window.onload = function() {
             screenLog("Window Loaded.");
             if(typeof FaceMesh === 'undefined') {
@@ -149,8 +156,9 @@
     </script>
 
     <script type="module">
-        import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-        import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+        // 【修正】使用 import map 定義的名稱來引入，這樣就不會報錯了
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
         screenLog("Three.js 模組載入成功");
 
@@ -170,7 +178,6 @@
                 const container = document.body;
                 
                 scene = new THREE.Scene();
-                // 這裡不設背景色，讓 CSS 背景透出來
                 
                 camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
                 camera.position.set(0, 0, 20);
@@ -178,7 +185,7 @@
                 renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
                 renderer.setSize(window.innerWidth, window.innerHeight);
                 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-                container.appendChild(renderer.domElement); // 確保 Canvas 被加入 Body
+                container.appendChild(renderer.domElement);
 
                 controls = new OrbitControls(camera, renderer.domElement);
                 controls.enableDamping = true;
@@ -200,7 +207,6 @@
                     if (mode === 'mouse') {
                         if (e.buttons > 0) {
                             isBlowing = true;
-                            // 畫面中心是 0，左邊負數，右邊正數
                             blowDirection = (e.clientX / window.innerWidth - 0.5) * 8;
                             document.getElementById('status-text').innerText = "🌬️ 吹氣中 (方向: " + blowDirection.toFixed(1) + ")";
                         } else {
@@ -211,7 +217,7 @@
                 });
 
                 screenLog("3D 場景建立完成");
-                animate(); // 開始動畫迴圈
+                animate();
 
             } catch (e) {
                 screenLog("3D 初始化失敗: " + e.message, 'red');
@@ -234,7 +240,6 @@
 
         function createBubble() {
             const bubble = new THREE.Mesh(geometry, material.clone());
-            // 從下方隨機位置生成
             bubble.position.set((Math.random()-0.5)*2, -8, 5);
             const s = 0.8 + Math.random();
             bubble.scale.set(s,s,s);
@@ -248,7 +253,6 @@
         }
 
         function onPointerDown(event) {
-            // 點擊戳破
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
@@ -270,16 +274,13 @@
             requestAnimationFrame(animate);
             if(controls) controls.update();
 
-            // 生成泡泡
             if (isBlowing && Math.random() > 0.85) createBubble();
 
-            // 更新泡泡位置
             for (let i = bubbles.length - 1; i >= 0; i--) {
                 const b = bubbles[i];
                 b.mesh.position.add(b.velocity);
                 b.mesh.position.y += Math.sin(Date.now()*0.001 + b.mesh.id)*0.01;
                 
-                // 超出範圍移除
                 if (b.mesh.position.y > 30) {
                     scene.remove(b.mesh);
                     bubbles.splice(i, 1);
@@ -320,12 +321,10 @@
                     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
                         const lm = results.multiFaceLandmarks[0];
                         
-                        // 嘴巴開合判定
                         const h = Math.hypot(lm[13].x - lm[14].x, lm[13].y - lm[14].y);
                         const w = Math.hypot(lm[61].x - lm[291].x, lm[61].y - lm[291].y);
                         const ratio = h / w;
 
-                        // 臉部轉向判定 (0:左, 1:右) -> 轉換成 -1 ~ 1
                         const faceX = lm[1].x;
                         blowDirection = (0.5 - faceX) * 8; 
 
