@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D 泡泡 (V9.0 終極光影版)</title>
+    <title>3D 泡泡 (V10.0 物理極致光影版)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
@@ -15,12 +15,13 @@
             overflow: hidden;
             width: 100%;
             height: 100%;
-            background: linear-gradient(180deg, #2b1055 0%, #7597de 100%) !important;
+            /* 背景維持深色漸層，襯托泡泡的亮光 */
+            background: linear-gradient(180deg, #1a0b2e 0%, #4a69bd 100%) !important;
             font-family: "Microsoft JhengHei", sans-serif;
             color: white;
         }
 
-        /* 數值儀表板 */
+        /* 儀表板 */
         #hud {
             position: absolute;
             top: 10px;
@@ -33,16 +34,17 @@
         #status-main {
             font-size: 1.5rem;
             font-weight: bold;
-            text-shadow: 0 2px 5px rgba(0,0,0,0.8);
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
         }
         #status-debug {
             font-size: 0.9rem;
-            color: #ddd;
-            background: rgba(0,0,0,0.3);
+            color: #ccc;
+            background: rgba(0,0,0,0.4);
             display: inline-block;
-            padding: 5px 10px;
-            border-radius: 10px;
+            padding: 4px 12px;
+            border-radius: 12px;
             margin-top: 5px;
+            backdrop-filter: blur(4px);
         }
 
         /* 啟動畫面 */
@@ -66,39 +68,34 @@
             border-radius: 50px;
             border: none;
             cursor: pointer;
-            background: #fd79a8; 
+            background: #e84393; 
             color: white; 
             font-weight: bold;
-            box-shadow: 0 0 20px rgba(253, 121, 168, 0.6);
-            transition: 0.2s;
+            box-shadow: 0 0 25px rgba(232, 67, 147, 0.6);
+            transition: 0.3s;
         }
         button:active { transform: scale(0.95); }
 
-        /* 相機隱藏設定 */
         .input_video { 
-            position: fixed;
-            top: -10000px;
-            left: -10000px;
-            width: 640px; 
-            height: 480px;
-            visibility: hidden;
+            position: fixed; top: -10000px; left: -10000px;
+            width: 640px; height: 480px; visibility: hidden;
         }
         
-        /* 縮小的除錯日誌 */
+        /* 縮小的日誌區 (依您要求) */
         #error-log {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
             height: 36px;
-            background: rgba(0,0,0,0.7);
-            color: #0f0;
+            background: rgba(0,0,0,0.8);
+            color: #00ff00;
             font-size: 11px;
-            line-height: 16px;
-            overflow-y: auto;
-            pointer-events: auto;
-            padding: 2px 5px;
-            box-sizing: border-box;
+            line-height: 18px;
+            overflow-y: hidden;
+            pointer-events: none;
+            padding: 0 10px;
+            white-space: nowrap;
         }
     </style>
 </head>
@@ -106,12 +103,12 @@
 
     <div id="hud">
         <div id="status-main">等待啟動...</div>
-        <div id="status-debug">數值監測中 (目標 > 0.1)</div>
+        <div id="status-debug">數值監測 (目標 > 0.1，可以向右吹向左吹)</div>
     </div>
 
     <div id="start-screen">
-        <h1 style="color:white; margin-bottom:10px;">🫧 3D 泡泡 V9</h1>
-        <p style="color:#aaa; font-size:0.9rem;">終極光影修正版</p>
+        <h1 style="color:white; margin-bottom:10px;">🫧 3D 泡泡 V10</h1>
+        <p style="color:#aaa; font-size:0.9rem;">物理極致光影版</p>
         <br>
         <button id="btn-start" disabled>正在載入 AI...</button>
     </div>
@@ -122,11 +119,7 @@
     <script>
         const logBox = document.getElementById('error-log');
         function log(msg) {
-            if (logBox.childElementCount > 5) logBox.removeChild(logBox.firstChild);
-            const div = document.createElement('div');
-            div.innerText = `> ${msg}`;
-            logBox.appendChild(div);
-            logBox.scrollTop = logBox.scrollHeight;
+            logBox.innerText = `> ${msg}`; // 只顯示最後一行，保持乾淨
         }
         window.onerror = (msg) => log("錯誤: " + msg);
 
@@ -136,6 +129,7 @@
                 btn.innerText = "📸 啟動相機";
                 btn.disabled = false;
                 btn.style.background = "#00b894";
+                btn.style.boxShadow = "0 0 25px rgba(0, 184, 148, 0.6)";
             } else {
                 log("AI 載入失敗，請檢查網路");
             }
@@ -145,7 +139,6 @@
     <script type="module">
         import * as THREE from 'https://esm.sh/three@0.160.0';
         import { OrbitControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';
-        // 【修改點 1】引入內建環境生成器，取代不穩定的外部圖檔
         import { RoomEnvironment } from 'https://esm.sh/three@0.160.0/examples/jsm/environments/RoomEnvironment.js';
 
         let scene, camera, renderer, controls;
@@ -170,7 +163,10 @@
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            
+            // 【關鍵 1】開啟高品質色調映射，讓光線看起來更亮、更有對比度
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.5; // 提高曝光度，增強反射
             document.body.appendChild(renderer.domElement);
 
             controls = new OrbitControls(camera, renderer.domElement);
@@ -178,12 +174,24 @@
             controls.minDistance = 5;
             controls.maxDistance = 50;
 
-            // 【修改點 1 - 核心】使用 PMREMGenerator 生成高品質室內光影
-            log("正在生成高品質光影...");
+            // 【關鍵 2】生成基礎環境光 (確保有基本反射)
             const environment = new RoomEnvironment(renderer);
             const pmremGenerator = new THREE.PMREMGenerator(renderer);
             scene.environment = pmremGenerator.fromScene(environment).texture;
-            log("光影環境生成完畢 (保證成功)");
+
+            // 【關鍵 3】加入「三色光譜燈」，強迫泡泡表面產生豐富的色彩干涉
+            // 這是一種模擬攝影棚打光技巧，能最大化薄膜干涉效果
+            const light1 = new THREE.PointLight(0xff00ff, 500, 50); // 洋紅
+            light1.position.set(10, 10, 10);
+            scene.add(light1);
+
+            const light2 = new THREE.PointLight(0x00ffff, 500, 50); // 青色
+            light2.position.set(-10, 5, 10);
+            scene.add(light2);
+
+            const light3 = new THREE.PointLight(0xffaa00, 500, 50); // 金黃
+            light3.position.set(0, -10, 5);
+            scene.add(light3);
 
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
@@ -203,31 +211,38 @@
             });
 
             animate();
+            log("物理光影引擎已啟動");
         }
 
-        // --- 2. 泡泡材質 ---
-        const geo = new THREE.SphereGeometry(1, 64, 64);
+        // --- 2. 泡泡材質 (物理法則參數調整) ---
+        const geo = new THREE.SphereGeometry(1, 128, 128); // 極高細分，保證反射平滑
         const mat = new THREE.MeshPhysicalMaterial({
             color: 0xffffff,
-            transmission: 1,
+            transmission: 0.99,  // 幾乎完全透明
             opacity: 1,
-            roughness: 0,
             metalness: 0,
-            ior: 1.33,
-            thickness: 0.5,
-            iridescence: 1,
-            iridescenceIOR: 1.3,
-            iridescenceThicknessRange: [100, 800],
-            clearcoat: 1,
+            roughness: 0,        // 絕對光滑，像玻璃一樣
+            ior: 1.5,            // 基礎折射率 (類似玻璃/水)
+            thickness: 0.1,      // 體積厚度 (光線穿透吸收用)
+            
+            // 【關鍵 4】虹彩干涉設定 (Iridescence)
+            iridescence: 1,      // 開啟強度：最大
+            iridescenceIOR: 1.33,// 薄膜折射率 (肥皂水的物理數值)
+            // 薄膜厚度範圍：400nm (紫/藍) 到 800nm (紅/金)
+            // 這是產生彩虹色最關鍵的物理區間
+            iridescenceThicknessRange: [400, 800], 
+            
+            clearcoat: 1,        // 外層清漆，增加雙重反射感
             clearcoatRoughness: 0,
-            envMapIntensity: 2.0, // 增強反射強度
             side: THREE.DoubleSide
         });
 
         function createBubble() {
             const b = new THREE.Mesh(geo, mat.clone());
             b.position.set((Math.random()-0.5)*3, -6, 5);
-            const s = 0.5 + Math.random();
+            
+            // 隨機大小
+            const s = 0.8 + Math.random() * 0.5;
             b.scale.set(s,s,s);
             scene.add(b);
 
@@ -250,8 +265,10 @@
                 const b = bubbles[i];
                 b.mesh.position.add(b.velocity);
                 b.mesh.position.y += Math.sin(Date.now()*0.002 + b.mesh.id)*0.01;
-                b.mesh.rotation.y += 0.005;
-                b.mesh.rotation.x += 0.002;
+                
+                // 旋轉泡泡，讓光影流動
+                b.mesh.rotation.y += 0.01;
+                b.mesh.rotation.x += 0.005;
 
                 if(b.mesh.position.y > 25) {
                     scene.remove(b.mesh);
@@ -285,18 +302,18 @@
                     const ratio = h / w;
                     
                     blowDirection = (0.5 - lm[1].x) * 6;
-                    
-                    // 【修改點 2】更新文字顯示，加入目標提示
-                    hudDebug.innerText = `嘴型數值: ${ratio.toFixed(2)} (目標 > 0.1，可以向右向左吹氣)`;
+                    hudDebug.innerText = `嘴型數值: ${ratio.toFixed(2)} (目標 > 0.1)`;
 
                     if (ratio > 0.1 && h > 0.005) { 
                         isBlowing = true;
                         hudMain.innerText = "🌬️ 吹氣中！";
                         hudMain.style.color = "#55efc4"; 
+                        hudMain.style.textShadow = "0 0 10px #55efc4";
                     } else {
                         isBlowing = false;
                         hudMain.innerText = "😐 請嘟嘴 (O型)";
                         hudMain.style.color = "white";
+                        hudMain.style.textShadow = "0 2px 10px rgba(0,0,0,0.8)";
                     }
                 } else {
                     hudMain.innerText = "👀 找不到臉...";
@@ -309,7 +326,7 @@
                 width: 640, height: 480
             });
             await camera.start();
-            log("相機已啟動");
+            log("相機影像分析中...");
         }
     </script>
 </body>
