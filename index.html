@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D 泡泡 V7.2 (超亮巨大版)</title>
+    <title>3D 泡泡 V7.3 (黃昏邊界)</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: "微軟正黑體", sans-serif; user-select: none; }
         
@@ -14,46 +14,47 @@
         }
 
         #version-tag {
-            position: absolute; top: 10px; right: 10px; color: #888; font-size: 12px; font-weight: bold;
+            position: absolute; top: 10px; right: 10px; color: rgba(255,255,255,0.5); font-size: 12px; font-weight: bold;
         }
 
         #start-screen {
-            pointer-events: auto; background: rgba(30,30,30,0.9);
+            pointer-events: auto; background: rgba(60, 20, 0, 0.85); /* 黃昏色調 */
             padding: 50px; border-radius: 25px; text-align: center;
-            border: 2px solid #ffdd00; box-shadow: 0 0 80px rgba(255,220,0,0.5);
+            border: 2px solid #ff7e5f; box-shadow: 0 0 80px rgba(255, 100, 50, 0.6);
+            backdrop-filter: blur(10px);
         }
 
         h1 {
             color: #fff; margin: 0 0 15px 0; font-size: 2.5rem;
-            text-shadow: 0 0 20px #ffdd00;
+            text-shadow: 0 0 20px #ff7e5f;
         }
 
         #btn-start {
-            background: linear-gradient(to right, #ffcc00, #ffeb3b); color: #000; border: none; padding: 20px 60px; font-size: 1.5rem;
+            background: linear-gradient(to right, #feb47b, #ff7e5f); color: #fff; border: none; padding: 20px 60px; font-size: 1.5rem;
             border-radius: 40px; cursor: pointer; margin-top: 30px; font-weight: bold;
-            box-shadow: 0 10px 30px rgba(255,200,0,0.6); transition: 0.2s;
+            box-shadow: 0 10px 30px rgba(255, 126, 95, 0.6); transition: 0.2s;
         }
-        #btn-start:hover { transform: scale(1.05); box-shadow: 0 15px 40px rgba(255,220,0,0.8); }
+        #btn-start:hover { transform: scale(1.05); box-shadow: 0 15px 40px rgba(255, 126, 95, 0.8); }
 
         #instructions {
             position: absolute; top: 20px; width: 100%; text-align: center;
             opacity: 0; transition: opacity 1s; pointer-events: none;
-            color: white; text-shadow: 0 2px 10px #000;
+            color: white; text-shadow: 0 2px 10px rgba(0,0,0,0.8);
         }
         
         #wind-arrow {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 8rem; color: rgba(255,255,255,0.3); font-weight: bold;
+            font-size: 8rem; color: rgba(255,255,255,0.4); font-weight: bold;
             opacity: 0; transition: opacity 0.3s; pointer-events: none;
         }
 
         #mic-indicator {
             position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-            width: 300px; height: 10px; background: #333;
+            width: 300px; height: 10px; background: rgba(0,0,0,0.5);
             border-radius: 5px; overflow: hidden; opacity: 0; transition: opacity 1s;
         }
         #mic-level {
-            width: 0%; height: 100%; background: linear-gradient(90deg, #ffdd00, #ffffff); transition: width 0.05s;
+            width: 0%; height: 100%; background: linear-gradient(90deg, #feb47b, #ff7e5f); transition: width 0.05s;
         }
 
         video { position: absolute; opacity: 0; pointer-events: none; }
@@ -66,12 +67,12 @@
 <body>
 
     <div id="ui-layer">
-        <div id="version-tag">V7.2 Ultra Bright & Giant</div>
+        <div id="version-tag">V7.3 Sunset Horizon</div>
         <div id="wind-arrow">➤</div>
         
         <div id="start-screen">
-            <h1>🌟 超亮巨大泡泡</h1>
-            <p style="color:#ccc; font-size: 1.2rem;">請嘗試左右轉頭吹氣</p>
+            <h1>🌇 黃昏巨大泡泡</h1>
+            <p style="color:#ddd; font-size: 1.2rem;">請嘗試左右轉頭吹氣</p>
             <button id="btn-start" onclick="initExperience()">開啟體驗</button>
         </div>
 
@@ -139,8 +140,6 @@
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
-            
-            // V7.2: 增加射線檢測的容錯率，更容易點到大泡泡
             raycaster.params.Sphere.threshold = 0.5;
 
             const intersects = raycaster.intersectObjects(bubbles.map(b => b.mesh));
@@ -158,51 +157,68 @@
             opacity: 1.0,
             transparent: true,
             roughness: 0.0,
-            metalness: 0.2, // 稍微增加金屬感，讓反光更強
-            thickness: 0.2, 
+            metalness: 0.3, // 增加金屬感以增強反射
+            thickness: 0.5, // 增加厚度感
             ior: 1.5,
             reflectivity: 1,
-            iridescence: 1.2, // 增強虹彩
+            iridescence: 1.5,
             iridescenceIOR: 1.33,
-            iridescenceThicknessRange: [100, 1000],
+            iridescenceThicknessRange: [100, 800],
             clearcoat: 1.0,
-            clearcoatRoughness: 0
+            clearcoatRoughness: 0,
+            envMapIntensity: 2.5 // 強制增強環境反射強度
         });
 
         function initThreeJS() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x000000);
+
+            // --- V7.3 關鍵修改: 建立黃昏漸層背景 ---
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 512;
+            const context = canvas.getContext('2d');
+            // 建立從上到下的漸層: 深藍夜空 -> 紫色過渡 -> 橘紅夕陽 -> 地平線
+            const gradient = context.createLinearGradient(0, 0, 0, 512);
+            gradient.addColorStop(0.0, '#0B1026'); // 頂部深藍
+            gradient.addColorStop(0.5, '#4B2D5B'); // 中間紫
+            gradient.addColorStop(0.8, '#C85D46'); // 夕陽橘紅
+            gradient.addColorStop(1.0, '#FF9C7C'); // 底部亮橘
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 512, 512);
+            
+            const bgTexture = new THREE.CanvasTexture(canvas);
+            bgTexture.mapping = THREE.EquirectangularReflectionMapping; // 設為反射模式
+
+            // 將這個漸層同時設為背景和環境光罩
+            scene.background = bgTexture;
+            scene.environment = bgTexture; // 讓泡泡反射這個天空！
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 100);
-            camera.position.z = 6; // V7.2: 相機稍微拉遠，以容納更大的泡泡
+            camera.position.z = 6; 
 
             renderer = new THREE.WebGLRenderer({antialias: true});
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            
-            // V7.2: 大幅增加整體曝光度
-            renderer.toneMappingExposure = 2.5; 
-            
+            renderer.toneMappingExposure = 1.8; 
             document.body.appendChild(renderer.domElement);
 
-            // --- V7.2 燈光極致增強 ---
+            // --- V7.3 燈光調整 (配合黃昏) ---
             
-            // 1. 環境光：大幅增強
-            scene.add(new THREE.AmbientLight(0xffffff, 2.0)); 
+            // 暖色環境光
+            scene.add(new THREE.AmbientLight(0xffccaa, 1.5)); 
 
-            // 2. 主角點光源：強度翻倍，範圍加大
-            const pointLight = new THREE.PointLight(0xffdd00, 50, 300); 
+            // 主光源改為暖橘色，模擬夕陽
+            const pointLight = new THREE.PointLight(0xff6600, 30, 300); 
             pointLight.position.set(15, 5, 10);
             scene.add(pointLight);
 
-            // 3. 輪廓光：增強
-            const rimLight = new THREE.DirectionalLight(0x8888ff, 10); 
-            rimLight.position.set(-10, 0, -5);
+            // 輪廓光改為暖紫色
+            const rimLight = new THREE.DirectionalLight(0xaa66ff, 8); 
+            rimLight.position.set(-10, 5, -5);
             scene.add(rimLight);
             
-            // 4. 底部補光 (新增)：讓泡泡底部也亮起來
-            const bottomLight = new THREE.DirectionalLight(0xffffff, 3);
+            // 底部補光
+            const bottomLight = new THREE.DirectionalLight(0xffaa88, 5);
             bottomLight.position.set(0, -10, 0);
             scene.add(bottomLight);
 
@@ -212,14 +228,10 @@
         class Bubble {
             constructor() {
                 this.mesh = new THREE.Mesh(bubbleGeo, bubbleMat);
-                
-                // --- V7.2 泡泡巨大化 ---
-                // 舊版 0.6~1.2 -> 新版 1.5~3.0 (變大 2.5 倍!)
                 const size = 1.5 + Math.random() * 1.5;
                 this.mesh.scale.set(size, size, size);
                 
-                // 生成位置
-                const startX = mouthPosition.x * 4; // 配合相機拉遠，調整座標比例
+                const startX = mouthPosition.x * 4; 
                 const startY = mouthPosition.y * 4;
                 this.mesh.position.set(startX + (Math.random()-0.5)*0.5, startY, 0);
                 
@@ -256,7 +268,6 @@
                 const wobble = Math.sin(Date.now()*0.004 + this.wobbleOffset)*0.08;
                 this.mesh.scale.setScalar(this.mesh.scale.x + wobble*0.005);
                 
-                // V7.2: 擴大移除邊界 (因為泡泡很大)
                 return (this.mesh.position.y < 12 && Math.abs(this.mesh.position.x) < 15);
             }
             pop() { if(!this.isPopping) this.isPopping = true; }
@@ -276,7 +287,6 @@
                 arrow.style.opacity = 0;
             }
 
-            // 稍微降低生成頻率，避免大泡泡太擁擠
             if ((isBlowingMouth || isBlowingMic) && Math.random() > 0.88) bubbles.push(new Bubble());
             
             for (let i = bubbles.length - 1; i >= 0; i--) {
@@ -295,12 +305,12 @@
 
                     const mouthH = Math.hypot(lm[13].x - lm[14].x, lm[13].y - lm[14].y);
                     const mouthW = Math.hypot(lm[61].x - lm[291].x, lm[61].y - lm[291].y);
-                    isBlowingMouth = ((mouthH/mouthW) > 0.3 && mouthH > 0.01); // V7.2: 降低一點吹氣門檻，更容易觸發
+                    isBlowingMouth = ((mouthH/mouthW) > 0.3 && mouthH > 0.01);
 
                     const leftFaceZ = lm[454].z;
                     const rightFaceZ = lm[234].z;
                     const yaw = (leftFaceZ - rightFaceZ) * 12; 
-                    windDirectionX += (yaw - windDirectionX) * 0.15; // V7.2: 加快轉頭反應速度
+                    windDirectionX += (yaw - windDirectionX) * 0.15;
 
                     const mouthX = -(lm[13].x - 0.5) * 2; 
                     const mouthY = -(lm[13].y - 0.5) * 2; 
