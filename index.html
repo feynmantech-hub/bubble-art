@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D 吹泡泡模擬器 (AI 嘴型偵測)</title>
+    <title>3D 吹泡泡 (修復版)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
@@ -13,356 +13,348 @@
         body {
             margin: 0;
             overflow: hidden;
-            /* 7. 背景是黃昏 */
-            background: linear-gradient(180deg, #6c4f70 0%, #ff9a76 60%, #ffc97e 100%);
+            /* 背景色：黃昏漸層 */
+            background: linear-gradient(180deg, #4b3d60 0%, #fd79a8 60%, #ffeaa7 100%);
             font-family: "Microsoft JhengHei", sans-serif;
-            user-select: none;
         }
-        
-        canvas {
-            display: block;
+        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
+        .input_video { display: none; }
+
+        /* 介面層 */
+        #ui-layer {
             position: absolute;
             top: 0;
             left: 0;
-            z-index: 1;
+            width: 100%;
+            height: 100%;
+            z-index: 100;
+            pointer-events: none; /* 讓點擊穿透到 3D 層 */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
-        /* 用於隱藏原始攝影機畫面，我們只需要數據 */
-        .input_video {
-            display: none;
-        }
-
-        /* 3. 跳出視窗介面 */
+        /* 啟動畫面 (只有這層接收點擊) */
         #start-screen {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 100;
+            z-index: 200;
+            pointer-events: auto;
             color: white;
             text-align: center;
         }
 
+        h1 { margin-bottom: 10px; font-size: 2rem; }
+        p { color: #ccc; margin-bottom: 20px; max-width: 80%; line-height: 1.5; }
+        
+        .btn-group { display: flex; gap: 20px; }
+        
         button {
-            padding: 15px 30px;
-            font-size: 1.2rem;
-            background: #ff9a76;
+            padding: 15px 25px;
+            font-size: 1.1rem;
             border: none;
             border-radius: 50px;
-            color: white;
             cursor: pointer;
-            margin-top: 20px;
-            box-shadow: 0 0 15px rgba(255, 154, 118, 0.5);
-            transition: transform 0.2s;
+            transition: 0.2s;
+            font-weight: bold;
         }
-        button:active { transform: scale(0.95); }
+        #btn-camera { background: #fd79a8; color: white; }
+        #btn-mouse { background: #555; color: white; border: 1px solid #777; }
+        
+        button:hover { transform: scale(1.05); filter: brightness(1.1); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        #status {
-            position: absolute;
-            top: 10px;
-            left: 10px;
+        /* 除錯控制台 (顯示錯誤訊息用) */
+        #debug-console {
+            background: rgba(0, 0, 0, 0.6);
+            color: #0f0;
+            font-family: monospace;
+            padding: 10px;
+            font-size: 12px;
+            max-height: 150px;
+            overflow-y: auto;
+            text-align: left;
+            pointer-events: auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        /* 狀態指示燈 */
+        #status-bar {
+            text-align: center;
+            padding: 20px;
             color: white;
-            background: rgba(0,0,0,0.3);
-            padding: 5px 10px;
-            border-radius: 5px;
-            z-index: 10;
-            pointer-events: none;
-            font-size: 0.9rem;
-        }
-
-        #loading {
-            margin-top: 10px;
-            font-size: 0.9rem;
-            color: #ddd;
+            font-size: 1.2rem;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
         }
     </style>
 </head>
 <body>
 
-    <video class="input_video" playsinline></video>
-
-    <div id="status">等待相機權限...</div>
-
     <div id="start-screen">
-        <h1>🌅 3D 吹泡泡模擬器</h1>
-        <p>請允許相機權限以偵測嘴型<br>嘟起嘴巴 (O型) 即可吹出泡泡！<br>左右轉頭可改變吹氣方向</p>
-        <div id="loading">正在載入 AI 模型...</div>
-        <button id="start-btn" disabled>開始體驗</button>
+        <h1>🌅 3D 吹泡泡</h1>
+        <p>
+            請選擇模式。<br>
+            若相機卡住，請確認網址開頭是 https:// <br>
+            或嘗試使用滑鼠模式。
+        </p>
+        <div class="btn-group">
+            <button id="btn-camera">📸 開啟相機吹氣</button>
+            <button id="btn-mouse">🖱️ 滑鼠/觸控模式 (測試用)</button>
+        </div>
+        <br>
+        <p id="loading-msg" style="font-size: 0.9rem; color: #aaa;">系統準備中...</p>
     </div>
 
+    <div id="ui-layer">
+        <div id="status-bar">等待啟動...</div>
+        <div id="debug-console">--- 系統日誌 ---<br></div>
+    </div>
+
+    <video class="input_video" playsinline></video>
+
     <script type="module">
+        // 為了避免 import 失敗導致全毀，使用 try-catch 包覆
         import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
         import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
 
-        // --- 全域變數 ---
+        // --- 日誌系統 ---
+        const consoleDiv = document.getElementById('debug-console');
+        function log(msg, isError = false) {
+            const span = document.createElement('div');
+            span.textContent = `> ${msg}`;
+            if (isError) span.style.color = '#ff5555';
+            consoleDiv.appendChild(span);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            console.log(msg);
+        }
+
+        window.onerror = function(message, source, lineno, colno, error) {
+            log(`錯誤: ${message}`, true);
+        };
+
+        log("程式腳本載入成功...");
+
+        // --- 變數 ---
         let scene, camera, renderer, controls;
         let bubbles = [];
+        let isBlowing = false;
+        let blowDirection = 0;
+        let mode = 'none'; // 'camera' or 'mouse'
         const mouse = new THREE.Vector2();
         const raycaster = new THREE.Raycaster();
-        
-        // 嘴型偵測變數
-        let isBlowing = false;
-        let blowDirection = 0; // -1 (左) ~ 1 (右)
-        let mouthPosition = new THREE.Vector3(0, 0, 0);
+
+        // --- UI 元件 ---
+        const startScreen = document.getElementById('start-screen');
+        const btnCamera = document.getElementById('btn-camera');
+        const btnMouse = document.getElementById('btn-mouse');
+        const statusBar = document.getElementById('status-bar');
+        const videoElement = document.getElementsByClassName('input_video')[0];
 
         // --- 1. Three.js 初始化 ---
         function initThree() {
-            const container = document.body;
-            
+            log("正在初始化 3D 場景...");
             scene = new THREE.Scene();
-            // 不設定 scene.background，讓 CSS 的黃昏背景透出來
             
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            // 10. 泡泡不會一開始占滿螢幕 (拉遠相機)
-            camera.position.set(0, 0, 30);
+            camera.position.set(0, 0, 25); // 相機拉遠
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            container.appendChild(renderer.domElement);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.body.appendChild(renderer.domElement);
 
-            // 9. 加入縮放功能 (OrbitControls)
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.enablePan = false;
-            controls.minDistance = 10;
-            controls.maxDistance = 60;
-            controls.zoomSpeed = 1.0;
+            controls.minDistance = 5;
+            controls.maxDistance = 50;
 
             // 燈光
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-            scene.add(ambientLight);
-            
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
             const dirLight = new THREE.DirectionalLight(0xffffff, 2);
             dirLight.position.set(10, 20, 10);
             scene.add(dirLight);
 
-            // 6. 監聽點擊事件 (戳破泡泡)
+            // 監聽
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
             window.addEventListener('pointerdown', onPointerDown);
-            window.addEventListener('resize', onWindowResize);
+
+            // 模擬滑鼠吹氣 (如果沒有相機)
+            window.addEventListener('pointermove', (e) => {
+                if (mode === 'mouse') {
+                    // 滑鼠按住時吹氣
+                    if (e.buttons > 0) {
+                        isBlowing = true;
+                        blowDirection = (e.clientX / window.innerWidth - 0.5) * 5;
+                        statusBar.innerText = "🌬️ 滑鼠按住吹氣中...";
+                    } else {
+                        isBlowing = false;
+                        statusBar.innerText = "👆 按住滑鼠左鍵來吹氣";
+                    }
+                }
+            });
             
+            log("3D 場景初始化完成");
             animate();
         }
 
-        // --- 泡泡材質 (7. 符合干涉的光影變化) ---
-        // 使用 MeshPhysicalMaterial 的 iridescence (虹彩) 屬性
-        const bubbleGeometry = new THREE.SphereGeometry(1, 64, 64);
-        const bubbleMaterial = new THREE.MeshPhysicalMaterial({
+        // --- 泡泡相關 ---
+        const bubbleGeo = new THREE.SphereGeometry(1, 64, 64);
+        const bubbleMat = new THREE.MeshPhysicalMaterial({
             color: 0xffffff,
-            transmission: 1,      // 完全透光
+            transmission: 1,
             opacity: 1,
-            metalness: 0,
             roughness: 0,
-            ior: 1.5,             // 折射率
-            thickness: 0.1,       // 薄膜厚度
-            iridescence: 1,       // 開啟虹彩效果
+            thickness: 0.2,
+            iridescence: 1,
             iridescenceIOR: 1.3,
-            iridescenceThicknessRange: [100, 400], // 薄膜厚度範圍 (納米)
             clearcoat: 1,
             side: THREE.DoubleSide
         });
 
-        // --- 產生泡泡邏輯 ---
         function createBubble() {
-            // 根據嘴巴位置生成泡泡 (從畫面中心下方發射，模擬第一人稱或從螢幕發出)
-            const bubble = new THREE.Mesh(bubbleGeometry, bubbleMaterial.clone());
-            
-            // 初始位置：隨機一點偏移，避免重疊
-            bubble.position.set(
-                (Math.random() - 0.5) * 2, 
-                -5, 
-                10 // 從離相機較近的地方生成
-            );
-
-            // 隨機大小
-            const scale = 1 + Math.random() * 1.5;
+            const bubble = new THREE.Mesh(bubbleGeo, bubbleMat.clone());
+            // 從下方中間生成
+            bubble.position.set((Math.random()-0.5)*2, -8, 5);
+            const scale = 0.8 + Math.random();
             bubble.scale.set(scale, scale, scale);
-
             scene.add(bubble);
 
-            // 8. 模擬自然風與吹氣方向
-            // 基礎向上飄的速度 + 嘴巴方向的水平速度
-            const speedX = blowDirection * 0.5 + (Math.random() - 0.5) * 0.1;
-            
+            // 速度計算
+            const speedX = blowDirection * 0.3 + (Math.random()-0.5)*0.2;
             bubbles.push({
                 mesh: bubble,
-                velocity: new THREE.Vector3(speedX, 0.1 + Math.random() * 0.1, -0.2), // 稍微往遠處飄
-                wobbleOffset: Math.random() * 100 // 用於擺動
+                velocity: new THREE.Vector3(speedX, 0.15 + Math.random()*0.1, -0.1)
             });
         }
 
-        // --- 戳破泡泡 ---
         function onPointerDown(event) {
+            // 戳破邏輯
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
             raycaster.setFromCamera(mouse, camera);
             
-            // 檢測所有泡泡
             const sceneBubbles = bubbles.map(b => b.mesh);
             const intersects = raycaster.intersectObjects(sceneBubbles);
-
             if (intersects.length > 0) {
-                const hitObject = intersects[0].object;
-                popBubble(hitObject);
+                const hit = intersects[0].object;
+                scene.remove(hit);
+                bubbles = bubbles.filter(b => b.mesh !== hit);
+                // 簡單破裂音效或視覺可加在此
             }
         }
 
-        function popBubble(mesh) {
-            scene.remove(mesh);
-            // 移除陣列中的泡泡
-            bubbles = bubbles.filter(b => b.mesh !== mesh);
-            
-            // 可以在這裡加入破掉的粒子特效 (簡化版：無特效直接消失)
-        }
-
-        // --- 動畫迴圈 ---
         function animate() {
             requestAnimationFrame(animate);
-            
-            const time = Date.now() * 0.001;
+            controls.update();
 
-            // 如果正在吹氣，持續生成泡泡
-            if (isBlowing && Math.random() > 0.8) { // 隨機間隔，不要太密集
-                createBubble();
-            }
+            // 生成泡泡
+            if (isBlowing && Math.random() > 0.85) createBubble();
 
-            // 更新所有泡泡位置
+            // 移動泡泡
             for (let i = bubbles.length - 1; i >= 0; i--) {
                 const b = bubbles[i];
-                
-                // 8. 自然風模擬：加入一些正弦波擾動
                 b.mesh.position.add(b.velocity);
-                b.mesh.position.y += Math.sin(time + b.wobbleOffset) * 0.02; 
-                b.mesh.position.x += Math.cos(time * 0.5 + b.wobbleOffset) * 0.01;
-
-                // 旋轉
-                b.mesh.rotation.x += 0.01;
-                b.mesh.rotation.z += 0.01;
-
-                // 如果飄太遠或太高，移除
-                if (b.mesh.position.y > 50 || Math.abs(b.mesh.position.x) > 50 || b.mesh.position.z < -100) {
+                b.mesh.position.y += Math.sin(Date.now()*0.001 + b.mesh.id)*0.01;
+                
+                if (b.mesh.position.y > 30) {
                     scene.remove(b.mesh);
                     bubbles.splice(i, 1);
                 }
             }
-
-            controls.update();
             renderer.render(scene, camera);
         }
 
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        // 啟動 Three.js
-        initThree();
-
-        // -----------------------------------------------------------
-        // --- AI 臉部偵測邏輯 (MediaPipe) ---
-        // -----------------------------------------------------------
-        
-        const videoElement = document.getElementsByClassName('input_video')[0];
-        const statusElement = document.getElementById('status');
-        const startBtn = document.getElementById('start-btn');
-        const loadingText = document.getElementById('loading');
-
-        // 嘴巴特徵點索引 (MediaPipe FaceMesh)
-        // 上唇: 13, 下唇: 14, 左嘴角: 61, 右嘴角: 291
-        const UP_LIP = 13;
-        const LOW_LIP = 14;
-        const LEFT_CORNER = 61;
-        const RIGHT_CORNER = 291;
-
-        function onResults(results) {
-            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                const landmarks = results.multiFaceLandmarks[0];
-
-                // 1. 計算嘴巴寬度 (左右嘴角距離)
-                const mouthWidth = Math.hypot(
-                    landmarks[LEFT_CORNER].x - landmarks[RIGHT_CORNER].x,
-                    landmarks[LEFT_CORNER].y - landmarks[RIGHT_CORNER].y
-                );
-
-                // 2. 計算嘴巴高度 (上下唇距離)
-                const mouthHeight = Math.hypot(
-                    landmarks[UP_LIP].x - landmarks[LOW_LIP].x,
-                    landmarks[UP_LIP].y - landmarks[LOW_LIP].y
-                );
-
-                // 3. 計算開合比率 (高度 / 寬度)
-                // 當嘟嘴(O型)時，寬度變窄，高度變高，比率會上升
-                const ratio = mouthHeight / mouthWidth;
-
-                // 閥值判定：如果比率大於 0.6 (大約)，視為嘟嘴
-                // 同時嘴巴高度要有一定大小 (避免閉嘴時誤判)
-                if (ratio > 0.6 && mouthHeight > 0.02) {
-                    isBlowing = true;
-                    statusElement.innerText = "🌬️ 正在吹氣！";
-                    statusElement.style.background = "rgba(0, 255, 0, 0.5)";
-                } else {
-                    isBlowing = false;
-                    statusElement.innerText = "😐 等待嘟嘴...";
-                    statusElement.style.background = "rgba(0,0,0,0.3)";
+        // --- AI 相機邏輯 ---
+        let faceMesh;
+        async function startCamera() {
+            log("正在啟動相機...");
+            try {
+                if (!faceMesh) {
+                    log("正在載入 FaceMesh 模型 (請稍候)...");
+                    faceMesh = new FaceMesh({locateFile: (file) => {
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+                    }});
+                    faceMesh.setOptions({
+                        maxNumFaces: 1,
+                        refineLandmarks: true,
+                        minDetectionConfidence: 0.5,
+                        minTrackingConfidence: 0.5
+                    });
+                    faceMesh.onResults(onResults);
                 }
 
-                // 5. 偵測左右方向 (利用臉部中心點的 x 座標)
-                // MediaPipe 的 x 座標是 0 (左) 到 1 (右)
-                // 因為鏡頭通常是鏡像，所以要反過來思考，或者直接取值
-                const faceCenterX = landmarks[1].x; // 鼻頭位置
+                const cameraUtils = new Camera(videoElement, {
+                    onFrame: async () => {
+                        await faceMesh.send({image: videoElement});
+                    },
+                    width: 640,
+                    height: 480
+                });
                 
-                // 將 0~1 轉換為 -1~1 的方向值
-                // 修正：大部分自拍鏡頭是鏡像的，使用者頭往右(畫面右邊)，數值變大
-                // 我們希望頭往右轉(畫面右邊)，泡泡往右飛
-                blowDirection = (0.5 - faceCenterX) * 5; // 乘數調整靈敏度
-                
-            } else {
-                statusElement.innerText = "⚠️ 偵測不到臉部";
+                await cameraUtils.start();
+                log("相機啟動成功！請嘟嘴試試");
+                startScreen.style.display = 'none';
+                statusBar.innerText = "😐 請嘟起嘴巴(O型)吹氣";
+                mode = 'camera';
+
+            } catch (err) {
+                log("相機啟動失敗: " + err.message, true);
+                alert("相機無法啟動。請確認網址是 https 開頭，或者改用滑鼠模式。");
             }
         }
 
-        // 初始化 FaceMesh
-        const faceMesh = new FaceMesh({locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-        }});
-        
-        faceMesh.setOptions({
-            maxNumFaces: 1,
-            refineLandmarks: true,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
-        
-        faceMesh.onResults(onResults);
+        function onResults(results) {
+            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                const lm = results.multiFaceLandmarks[0];
+                // 簡易嘟嘴判斷 (上下唇距離 / 左右嘴角距離)
+                const mouthH = Math.hypot(lm[13].x - lm[14].x, lm[13].y - lm[14].y);
+                const mouthW = Math.hypot(lm[61].x - lm[291].x, lm[61].y - lm[291].y);
+                const ratio = mouthH / mouthW;
 
-        // --- 啟動相機與流程控制 ---
-        
-        startBtn.disabled = false;
-        loadingText.style.display = 'none';
+                // 臉部方向
+                const faceX = lm[1].x; // 鼻頭
+                blowDirection = (0.5 - faceX) * 8; // 增強靈敏度
 
-        startBtn.addEventListener('click', () => {
-            document.getElementById('start-screen').style.display = 'none';
-            
-            // 3. 存取相機
-            const cameraUtils = new Camera(videoElement, {
-                onFrame: async () => {
-                    await faceMesh.send({image: videoElement});
-                },
-                width: 640,
-                height: 480
-            });
-            cameraUtils.start();
+                if (ratio > 0.5 && mouthH > 0.01) { // 閥值可調
+                    isBlowing = true;
+                    statusBar.innerText = "🌬️ 吹氣中！";
+                    statusBar.style.color = "#afffba";
+                } else {
+                    isBlowing = false;
+                    statusBar.innerText = "😐 等待嘟嘴...";
+                    statusBar.style.color = "white";
+                }
+            }
+        }
+
+        // --- 按鈕事件 ---
+        btnCamera.addEventListener('click', () => {
+            initThree();
+            startCamera();
         });
 
+        btnMouse.addEventListener('click', () => {
+            log("切換至滑鼠模式");
+            initThree();
+            startScreen.style.display = 'none';
+            mode = 'mouse';
+            statusBar.innerText = "👆 按住滑鼠左鍵來吹氣 (測試模式)";
+        });
+
+        log("系統就緒，請點擊按鈕");
     </script>
 </body>
 </html>
