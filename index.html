@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D 泡泡 (V6.0 高靈敏版)</title>
+    <title>3D 泡泡 (V7.0 極限靈敏版)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
@@ -20,7 +20,7 @@
             color: white;
         }
 
-        /* 數值儀表板 (新功能) */
+        /* 數值儀表板 */
         #hud {
             position: absolute;
             top: 10px;
@@ -107,8 +107,8 @@
     </div>
 
     <div id="start-screen">
-        <h1 style="color:white; margin-bottom:10px;">🫧 3D 泡泡 V6</h1>
-        <p style="color:#aaa; font-size:0.9rem;">高靈敏度版</p>
+        <h1 style="color:white; margin-bottom:10px;">🫧 3D 泡泡 V7</h1>
+        <p style="color:#aaa; font-size:0.9rem;">極限靈敏版 (標準 0.1)</p>
         <br>
         <button id="btn-start" disabled>正在載入 AI...</button>
     </div>
@@ -132,7 +132,7 @@
                 const btn = document.getElementById('btn-start');
                 btn.innerText = "📸 啟動相機";
                 btn.disabled = false;
-                btn.style.background = "#00b894"; // 變綠色代表可以按
+                btn.style.background = "#00b894";
             } else {
                 log("AI 載入失敗，請檢查網路");
             }
@@ -209,13 +209,13 @@
 
         function createBubble() {
             const b = new THREE.Mesh(geo, mat.clone());
-            // 位置：隨機一點
+            // 位置
             b.position.set((Math.random()-0.5)*3, -6, 5);
             const s = 0.5 + Math.random();
             b.scale.set(s,s,s);
             scene.add(b);
 
-            // 速度：根據頭轉方向
+            // 速度
             const vx = blowDirection * 0.4 + (Math.random()-0.5)*0.2;
             bubbles.push({
                 mesh: b,
@@ -227,8 +227,8 @@
             requestAnimationFrame(animate);
             controls.update();
 
-            // 生成泡泡 (頻率提高)
-            if(isBlowing && Math.random() > 0.7) { 
+            // 生成泡泡 (頻率高)
+            if(isBlowing && Math.random() > 0.6) { 
                 createBubble();
             }
 
@@ -245,7 +245,7 @@
             renderer.render(scene, camera);
         }
 
-        // --- 3. 相機與 AI (高靈敏設定) ---
+        // --- 3. 相機與 AI ---
         async function startCamera() {
             const video = document.querySelector('.input_video');
             const hudMain = document.getElementById('status-main');
@@ -265,22 +265,21 @@
                 if (res.multiFaceLandmarks && res.multiFaceLandmarks.length > 0) {
                     const lm = res.multiFaceLandmarks[0];
                     
-                    // 計算嘴巴開合度
-                    const h = Math.hypot(lm[13].x - lm[14].x, lm[13].y - lm[14].y); // 上下唇
-                    const w = Math.hypot(lm[61].x - lm[291].x, lm[61].y - lm[291].y); // 左右角
+                    const h = Math.hypot(lm[13].x - lm[14].x, lm[13].y - lm[14].y);
+                    const w = Math.hypot(lm[61].x - lm[291].x, lm[61].y - lm[291].y);
                     const ratio = h / w;
-
-                    // 計算頭轉方向 (鼻頭位置)
+                    
+                    // 頭轉方向
                     blowDirection = (0.5 - lm[1].x) * 6;
 
-                    // 【關鍵修正】顯示數值讓使用者知道狀況
-                    hudDebug.innerText = `嘴型數值: ${ratio.toFixed(2)} (目標 > 0.3)`;
+                    // 顯示數值
+                    hudDebug.innerText = `嘴型數值: ${ratio.toFixed(2)} (目標 > 0.1)`;
 
-                    // 【關鍵修正】判定門檻降到 0.3
-                    if (ratio > 0.3 && h > 0.005) { 
+                    // 【修改點】只要 > 0.1 就噴泡泡
+                    if (ratio > 0.1 && h > 0.005) { 
                         isBlowing = true;
                         hudMain.innerText = "🌬️ 吹氣中！";
-                        hudMain.style.color = "#55efc4"; // 綠色
+                        hudMain.style.color = "#55efc4"; 
                     } else {
                         isBlowing = false;
                         hudMain.innerText = "😐 請嘟嘴 (O型)";
@@ -288,7 +287,7 @@
                     }
                 } else {
                     hudMain.innerText = "👀 找不到臉...";
-                    hudMain.style.color = "#ff7675"; // 紅色
+                    hudMain.style.color = "#ff7675"; 
                 }
             });
 
