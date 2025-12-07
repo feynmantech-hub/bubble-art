@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D 泡泡 (V12.2 極致擬真版)</title>
+    <title>3D 泡泡 (V13.0 終極藝術版)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
@@ -15,8 +15,8 @@
             overflow: hidden;
             width: 100%;
             height: 100%;
-            /* 使用更深邃的背景來襯托高亮泡泡 */
-            background: linear-gradient(180deg, #050515 0%, #1a2a50 100%) !important;
+            /* 極深色背景，對比度最大化 */
+            background: linear-gradient(180deg, #02020a 0%, #101530 100%) !important;
             font-family: "Microsoft JhengHei", sans-serif;
             color: white;
         }
@@ -33,12 +33,12 @@
         #status-main {
             font-size: 1.5rem;
             font-weight: bold;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+            text-shadow: 0 2px 10px rgba(0,0,0,1);
         }
         #status-debug {
             font-size: 0.9rem;
             color: #ccc;
-            background: rgba(0,0,0,0.4);
+            background: rgba(0,0,0,0.6);
             display: inline-block;
             padding: 4px 12px;
             border-radius: 12px;
@@ -52,7 +52,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.95); /* 更黑的啟動背景 */
+            background: rgba(0,0,0,0.98);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -66,13 +66,13 @@
             border-radius: 50px;
             border: none;
             cursor: pointer;
-            background: #e84393; 
+            background: linear-gradient(45deg, #ff00cc, #3333ff);
             color: white; 
             font-weight: bold;
-            box-shadow: 0 0 25px rgba(232, 67, 147, 0.6);
+            box-shadow: 0 0 30px rgba(255, 0, 204, 0.5);
             transition: 0.3s;
         }
-        button:active { transform: scale(0.95); }
+        button:active { transform: scale(0.95); box-shadow: 0 0 10px rgba(255, 0, 204, 0.8); }
 
         .input_video { 
             position: fixed; top: -10000px; left: -10000px;
@@ -85,7 +85,7 @@
             left: 0;
             width: 100%;
             height: 30px;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.9);
             color: #00ff00;
             font-size: 11px;
             line-height: 30px;
@@ -104,8 +104,8 @@
     </div>
 
     <div id="start-screen">
-        <h1 style="color:white; margin-bottom:10px;">🫧 3D 泡泡 V12.2</h1>
-        <p style="color:#aaa; font-size:0.9rem;">極致擬真版 (高對比干涉)</p>
+        <h1 style="color:white; margin-bottom:10px; text-shadow: 0 0 20px #ff00cc;">🫧 3D 泡泡 V13.0</h1>
+        <p style="color:#aaa; font-size:0.9rem;">終極藝術版 (效果最大化)</p>
         <br>
         <button id="btn-start" disabled>正在載入 AI...</button>
     </div>
@@ -122,7 +122,6 @@
                 const btn = document.getElementById('btn-start');
                 btn.innerText = "📸 啟動相機";
                 btn.disabled = false;
-                btn.style.background = "#00b894";
             } else {
                 log("AI 載入失敗，請檢查網路");
             }
@@ -147,43 +146,43 @@
             startCamera();
         });
 
-        // --- 生成高對比流動紋理 ---
-        function createRainbowTexture() {
+        // --- 【關鍵修改】生成重力梯度紋理 (模擬真實厚度變化) ---
+        function createGravityThicknessMap() {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
             canvas.height = 512;
             const ctx = canvas.getContext('2d');
             
-            // 使用更劇烈的黑白變化來製造強烈的色彩邊界
-            const grad = ctx.createLinearGradient(0, 0, 512, 512);
-            grad.addColorStop(0, '#000000');
-            grad.addColorStop(0.4, '#ffffff');
-            grad.addColorStop(0.6, '#000000');
+            // 垂直漸層：上薄(黑) -> 下厚(白)
+            // 這會產生像參考圖那樣平滑、帶狀的彩虹
+            const grad = ctx.createLinearGradient(0, 0, 0, 512);
+            grad.addColorStop(0, '#000000'); 
             grad.addColorStop(1, '#ffffff');
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, 512, 512);
-
-            // 增加更多細節噪點
-            for(let i=0; i<80; i++) {
+            
+            // 加入極少量的擾動，避免太死板
+            for(let i=0; i<20; i++) {
                 ctx.beginPath();
                 const x = Math.random() * 512;
                 const y = Math.random() * 512;
-                const r = Math.random() * 100 + 20;
+                const r = Math.random() * 50 + 10;
                 const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-                g.addColorStop(0, `rgba(255,255,255, ${Math.random()*0.8})`);
+                g.addColorStop(0, `rgba(255,255,255, ${Math.random()*0.2})`);
                 g.addColorStop(1, 'rgba(0,0,0,0)');
                 ctx.fillStyle = g;
                 ctx.arc(x, y, r, 0, Math.PI*2);
                 ctx.fill();
             }
-            
+
             const texture = new THREE.CanvasTexture(canvas);
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
+            // 不需要重複包裹，因為我們要的是從上到下的單一變化
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
             return texture;
         }
 
-        // --- 1. 初始化 3D (高對比燈光設定) ---
+        // --- 1. 初始化 3D ---
         function initThree() {
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -192,9 +191,9 @@
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            // 使用電影級色調映射，並稍微降低曝光，讓亮部更突出
+            // 使用電影級色調，並提高曝光，讓亮部過曝產生光暈感
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 0.9; 
+            renderer.toneMappingExposure = 1.3; 
             document.body.appendChild(renderer.domElement);
 
             controls = new OrbitControls(camera, renderer.domElement);
@@ -202,17 +201,29 @@
             controls.minDistance = 5;
             controls.maxDistance = 50;
 
+            // 生成高動態範圍環境光
             const environment = new RoomEnvironment(renderer);
             const pmremGenerator = new THREE.PMREMGenerator(renderer);
             scene.environment = pmremGenerator.fromScene(environment).texture;
 
-            // 【關鍵修改】燈光調整
-            // 1. 增強主光源，製造銳利亮點 (如參考圖)
-            const dl = new THREE.DirectionalLight(0xffffff, 6.0);
-            dl.position.set(5, 10, 8);
-            scene.add(dl);
-            // 2. 降低環境光，增加對比度
-            scene.add(new THREE.AmbientLight(0xffffff, 0.1));
+            // 【關鍵修改】戲劇性燈光佈局
+            // 1. 強烈的主光源 (製造銳利白點)
+            const mainLight = new THREE.DirectionalLight(0xffffff, 5.0);
+            mainLight.position.set(10, 20, 10);
+            scene.add(mainLight);
+            
+            // 2. 藍色邊緣光 (製造冷色調輪廓)
+            const rimLightBlue = new THREE.PointLight(0x0088ff, 1000, 50);
+            rimLightBlue.position.set(-15, 10, -10);
+            scene.add(rimLightBlue);
+
+            // 3. 暖色補光 (增加色彩豐富度)
+            const fillLightWarm = new THREE.PointLight(0xffaa00, 500, 50);
+            fillLightWarm.position.set(15, -10, 5);
+            scene.add(fillLightWarm);
+            
+            // 極低的環境光，確保暗部夠暗
+            scene.add(new THREE.AmbientLight(0xffffff, 0.05));
 
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
@@ -232,36 +243,37 @@
             });
 
             animate();
-            log("3D 引擎已啟動 (V12.2 高擬真材質)");
+            log("3D 引擎已啟動 (V13.0 終極藝術材質)");
         }
 
-        // --- 2. 泡泡材質 (終極調校) ---
-        const noiseMap = createRainbowTexture();
+        // --- 2. 泡泡材質 (參數極限化) ---
+        const thicknessMap = createGravityThicknessMap();
         
         const geo = new THREE.SphereGeometry(1, 128, 128);
         const mat = new THREE.MeshPhysicalMaterial({
-            color: 0x000000, // 基底全黑，只顯示反射光
-            
+            color: 0x000000, 
             transmission: 1,
             transparent: true, 
-            // 【關鍵修改】極低的不透明度，讓中心幾乎消失
-            opacity: 0.1, 
+            opacity: 0.05, // 幾乎完全透明
 
             metalness: 0,
-            roughness: 0,
-            ior: 1.33,
+            roughness: 0, // 絕對光滑
+            
+            // 【修改】提高折射率，增強邊緣反射
+            ior: 1.5, 
             thickness: 0.1,
 
             iridescence: 1, 
             iridescenceIOR: 1.33,
-            // 微調厚度範圍，集中在鮮豔色彩區
-            iridescenceThicknessRange: [350, 750], 
-            iridescenceThicknessMap: noiseMap,
+            // 【修改】擴大範圍，捕捉完整光譜
+            iridescenceThicknessRange: [100, 1000], 
+            // 【修改】應用新的重力梯度貼圖
+            iridescenceThicknessMap: thicknessMap,
             
             clearcoat: 1,
             clearcoatRoughness: 0,
-            // 【關鍵修改】爆發式的環境反射強度，讓色彩「跳」出來
-            envMapIntensity: 6.0, 
+            // 【修改】極限環境反射強度
+            envMapIntensity: 15.0, 
             side: THREE.DoubleSide
         });
 
@@ -270,6 +282,11 @@
             b.position.set((Math.random()-0.5)*3, -6, 5);
             const s = 0.8 + Math.random() * 0.5;
             b.scale.set(s,s,s);
+            
+            // 隨機旋轉初始角度，讓彩虹方向不一樣
+            b.rotation.x = Math.random() * Math.PI;
+            b.rotation.y = Math.random() * Math.PI;
+            
             scene.add(b);
 
             const vx = blowDirection * 0.4 + (Math.random()-0.5)*0.2;
@@ -283,8 +300,8 @@
             requestAnimationFrame(animate);
             controls.update();
 
-            noiseMap.offset.y += 0.002; 
-            noiseMap.offset.x += 0.0015;
+            // 貼圖輕微流動
+            thicknessMap.offset.y -= 0.001; 
 
             if(isBlowing && Math.random() > 0.6) { 
                 createBubble();
@@ -294,9 +311,10 @@
                 const b = bubbles[i];
                 b.mesh.position.add(b.velocity);
                 b.mesh.position.y += Math.sin(Date.now()*0.003 + b.mesh.id)*0.015;
-                b.mesh.rotation.y += 0.01;
-                // 增加一點隨機擺動
-                b.mesh.rotation.z = Math.sin(Date.now()*0.001 + b.mesh.id) * 0.2;
+                
+                // 緩慢旋轉展示彩虹變化
+                b.mesh.rotation.x += 0.005;
+                b.mesh.rotation.y += 0.005;
 
                 if(b.mesh.position.y > 25) {
                     scene.remove(b.mesh);
@@ -306,7 +324,7 @@
             renderer.render(scene, camera);
         }
 
-        // --- 3. 相機與 AI (維持高靈敏度 0.1) ---
+        // --- 3. 相機與 AI (維持高靈敏度) ---
         async function startCamera() {
             const video = document.querySelector('.input_video');
             const hudMain = document.getElementById('status-main');
@@ -330,13 +348,13 @@
                     const ratio = h / w;
                     
                     blowDirection = (0.5 - lm[1].x) * 6;
-                    hudDebug.innerText = `嘴型數值: ${ratio.toFixed(2)} (目標 > 0.1，可以左右吹，點按戳破泡泡，3D旋轉，滑鼠/雙指縮放)`;
+                    hudDebug.innerText = `嘴型數值: ${ratio.toFixed(2)} (目標 > 0.1)`;
 
                     if (ratio > 0.1 && h > 0.005) { 
                         isBlowing = true;
                         hudMain.innerText = "🌬️ 吹氣中！";
-                        hudMain.style.color = "#55efc4"; 
-                        hudMain.style.textShadow = "0 0 10px #55efc4";
+                        hudMain.style.color = "#00ffcc"; 
+                        hudMain.style.textShadow = "0 0 20px #00ffcc, 0 0 40px #00ffcc";
                     } else {
                         isBlowing = false;
                         hudMain.innerText = "😐 請嘟嘴 (O型)";
@@ -345,7 +363,7 @@
                     }
                 } else {
                     hudMain.innerText = "👀 找不到臉...";
-                    hudMain.style.color = "#ff7675"; 
+                    hudMain.style.color = "#ff3333"; 
                 }
             });
 
