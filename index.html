@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D 泡泡 (V14.0 完美透光版)</title>
+    <title>3D 泡泡 (V15.0 終極透明修正版)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
@@ -15,8 +15,8 @@
             overflow: hidden;
             width: 100%;
             height: 100%;
-            /* 調整背景色，讓它稍微亮一點點，呈現深藍紫氛圍，襯托泡泡 */
-            background: linear-gradient(180deg, #1a0b2e 0%, #000000 100%) !important;
+            /* 深邃背景，對比亮邊泡泡 */
+            background: linear-gradient(180deg, #050510 0%, #1a1a3a 100%) !important;
             font-family: "Microsoft JhengHei", sans-serif;
             color: white;
         }
@@ -52,7 +52,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.95);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -66,10 +66,10 @@
             border-radius: 50px;
             border: none;
             cursor: pointer;
-            background: linear-gradient(45deg, #00d2ff, #3a7bd5);
+            background: linear-gradient(45deg, #00c6ff, #0072ff);
             color: white; 
             font-weight: bold;
-            box-shadow: 0 0 25px rgba(0, 210, 255, 0.5);
+            box-shadow: 0 0 25px rgba(0, 198, 255, 0.5);
             transition: 0.3s;
         }
         button:active { transform: scale(0.95); }
@@ -104,8 +104,8 @@
     </div>
 
     <div id="start-screen">
-        <h1 style="color:white; margin-bottom:10px;">🫧 3D 泡泡 V14.0</h1>
-        <p style="color:#aaa; font-size:0.9rem;">完美透光擬真版</p>
+        <h1 style="color:white; margin-bottom:10px;">🫧 3D 泡泡 V15.0</h1>
+        <p style="color:#aaa; font-size:0.9rem;">終極透明修正版</p>
         <br>
         <button id="btn-start" disabled>正在載入 AI...</button>
     </div>
@@ -146,29 +146,27 @@
             startCamera();
         });
 
-        // --- 生成油畫般的流動紋理 (修正色彩分佈) ---
+        // --- 生成高對比的油膜紋理 ---
         function createOilyTexture() {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
             canvas.height = 512;
             const ctx = canvas.getContext('2d');
             
-            // 底色
-            ctx.fillStyle = '#808080'; // 中性灰，讓厚度變化從中間開始
+            ctx.fillStyle = '#000000'; // 黑底
             ctx.fillRect(0, 0, 512, 512);
 
-            // 繪製大塊的隨機斑點，模擬油膜
-            for(let i=0; i<20; i++) {
+            for(let i=0; i<30; i++) {
                 ctx.beginPath();
                 const x = Math.random() * 512;
                 const y = Math.random() * 512;
-                const r = Math.random() * 200 + 50; // 大半徑
+                const r = Math.random() * 250 + 50;
                 
-                // 使用黑白漸層來代表厚度變化
+                // 使用高亮度的漸層
                 const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-                const brightness = Math.random() > 0.5 ? 255 : 0; // 極亮或極暗
-                g.addColorStop(0, `rgba(${brightness}, ${brightness}, ${brightness}, 0.5)`);
-                g.addColorStop(1, 'rgba(128,128,128,0)');
+                g.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+                g.addColorStop(0.5, 'rgba(200, 200, 200, 0.3)');
+                g.addColorStop(1, 'rgba(0,0,0,0)');
                 
                 ctx.fillStyle = g;
                 ctx.arc(x, y, r, 0, Math.PI*2);
@@ -190,8 +188,9 @@
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            // 使用高對比色調映射
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.2; 
+            renderer.toneMappingExposure = 1.0; 
             document.body.appendChild(renderer.domElement);
 
             controls = new OrbitControls(camera, renderer.domElement);
@@ -203,18 +202,13 @@
             const pmremGenerator = new THREE.PMREMGenerator(renderer);
             scene.environment = pmremGenerator.fromScene(environment).texture;
 
-            // 燈光：回歸均衡，確保泡泡不會死黑
-            const ambient = new THREE.AmbientLight(0xffffff, 0.5); // 增加環境光
-            scene.add(ambient);
-
-            const mainLight = new THREE.DirectionalLight(0xffffff, 3.0);
-            mainLight.position.set(5, 10, 7);
+            // 強烈的單一主光源，製造銳利亮點
+            const mainLight = new THREE.DirectionalLight(0xffffff, 4.0);
+            mainLight.position.set(10, 15, 10);
             scene.add(mainLight);
             
-            // 底部補光，讓泡泡下緣也有細節
-            const bottomLight = new THREE.DirectionalLight(0xaaccff, 1.0);
-            bottomLight.position.set(0, -10, 0);
-            scene.add(bottomLight);
+            // 微弱的環境光，保持暗部深邃
+            scene.add(new THREE.AmbientLight(0xffffff, 0.1));
 
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
@@ -234,37 +228,37 @@
             });
 
             animate();
-            log("3D 引擎已啟動 (修正亮度與透光)");
+            log("3D 引擎已啟動 (V15.0 修正材質)");
         }
 
-        // --- 2. 泡泡材質 (透光技術修正) ---
+        // --- 2. 泡泡材質 (關鍵修正) ---
         const thicknessMap = createOilyTexture();
         
         const geo = new THREE.SphereGeometry(1, 128, 128);
         const mat = new THREE.MeshPhysicalMaterial({
-            color: 0xffffff, // 【修正】改回白色基底，確保亮度
+            // 【關鍵修正 1】基底顏色設為深灰色，而非全白。這讓中心透明變暗。
+            color: 0x222222, 
             
-            // 【關鍵修正】使用 transmission (透光) 取代 opacity (透明)
-            // 這能讓泡泡像玻璃一樣透光，但保留表面反光
-            transmission: 0.95, 
+            // 【關鍵修正 2】極高的透光度
+            transmission: 0.99, 
             opacity: 1, 
-            transparent: true, // 仍然需要開啟透明以處理邊緣
+            transparent: true, 
 
             metalness: 0,
             roughness: 0, // 絕對光滑
-            ior: 1.5,     // 玻璃折射率，增加邊緣反光
-            thickness: 0.5, // 模擬薄殼體積
+            ior: 1.4,     // 稍微提高折射率，增強邊緣亮度
+            thickness: 0.2,
 
             // 虹彩設定
             iridescence: 1, 
             iridescenceIOR: 1.33,
-            // 【修正】縮小範圍至 300-800，這是肥皂膜最鮮豔的區間
-            iridescenceThicknessRange: [300, 800], 
+            iridescenceThicknessRange: [300, 900], 
             iridescenceThicknessMap: thicknessMap,
             
             clearcoat: 1,
             clearcoatRoughness: 0,
-            envMapIntensity: 2.0, // 強度適中，避免過曝或死黑
+            // 【關鍵修正 3】極高的反射強度，讓邊緣和彩虹「跳」出來
+            envMapIntensity: 5.0, 
             side: THREE.DoubleSide
         });
 
@@ -274,7 +268,6 @@
             const s = 0.8 + Math.random() * 0.5;
             b.scale.set(s,s,s);
             
-            // 隨機旋轉，讓紋理流動方向不同
             b.rotation.x = Math.random() * Math.PI;
             b.rotation.y = Math.random() * Math.PI;
             
@@ -291,9 +284,8 @@
             requestAnimationFrame(animate);
             controls.update();
 
-            // 讓油膜紋理緩慢流動
             thicknessMap.offset.x += 0.001;
-            thicknessMap.offset.y += 0.001;
+            thicknessMap.offset.y += 0.0015;
 
             if(isBlowing && Math.random() > 0.6) { 
                 createBubble();
@@ -303,8 +295,6 @@
                 const b = bubbles[i];
                 b.mesh.position.add(b.velocity);
                 b.mesh.position.y += Math.sin(Date.now()*0.003 + b.mesh.id)*0.015;
-                
-                // 泡泡自轉
                 b.mesh.rotation.y += 0.01;
 
                 if(b.mesh.position.y > 25) {
