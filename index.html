@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D 泡泡 (V12.0 終極透明干涉版)</title>
+    <title>3D 泡泡 (V12.2 極致擬真版)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
@@ -15,8 +15,8 @@
             overflow: hidden;
             width: 100%;
             height: 100%;
-            /* 深色背景能最好地襯托高強度的干涉光 */
-            background: linear-gradient(180deg, #0a0a2a 0%, #203060 100%) !important;
+            /* 使用更深邃的背景來襯托高亮泡泡 */
+            background: linear-gradient(180deg, #050515 0%, #1a2a50 100%) !important;
             font-family: "Microsoft JhengHei", sans-serif;
             color: white;
         }
@@ -52,7 +52,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.95); /* 更黑的啟動背景 */
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -104,8 +104,8 @@
     </div>
 
     <div id="start-screen">
-        <h1 style="color:white; margin-bottom:10px;">🫧 3D 泡泡 V12.0</h1>
-        <p style="color:#aaa; font-size:0.9rem;">終極透明干涉版</p>
+        <h1 style="color:white; margin-bottom:10px;">🫧 3D 泡泡 V12.2</h1>
+        <p style="color:#aaa; font-size:0.9rem;">極致擬真版 (高對比干涉)</p>
         <br>
         <button id="btn-start" disabled>正在載入 AI...</button>
     </div>
@@ -147,29 +147,30 @@
             startCamera();
         });
 
-        // --- 生成厚度紋理 (流動效果) ---
+        // --- 生成高對比流動紋理 ---
         function createRainbowTexture() {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
             canvas.height = 512;
             const ctx = canvas.getContext('2d');
             
-            // 使用更強烈的對比度來製造更明顯的色彩變化
+            // 使用更劇烈的黑白變化來製造強烈的色彩邊界
             const grad = ctx.createLinearGradient(0, 0, 512, 512);
             grad.addColorStop(0, '#000000');
-            grad.addColorStop(0.3, '#ffffff');
-            grad.addColorStop(0.7, '#000000');
+            grad.addColorStop(0.4, '#ffffff');
+            grad.addColorStop(0.6, '#000000');
             grad.addColorStop(1, '#ffffff');
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, 512, 512);
 
-            for(let i=0; i<60; i++) {
+            // 增加更多細節噪點
+            for(let i=0; i<80; i++) {
                 ctx.beginPath();
                 const x = Math.random() * 512;
                 const y = Math.random() * 512;
-                const r = Math.random() * 120 + 30;
+                const r = Math.random() * 100 + 20;
                 const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-                g.addColorStop(0, `rgba(255,255,255, ${Math.random()*0.7})`);
+                g.addColorStop(0, `rgba(255,255,255, ${Math.random()*0.8})`);
                 g.addColorStop(1, 'rgba(0,0,0,0)');
                 ctx.fillStyle = g;
                 ctx.arc(x, y, r, 0, Math.PI*2);
@@ -182,7 +183,7 @@
             return texture;
         }
 
-        // --- 1. 初始化 3D ---
+        // --- 1. 初始化 3D (高對比燈光設定) ---
         function initThree() {
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -191,9 +192,9 @@
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            // 使用較高對比的色調映射
+            // 使用電影級色調映射，並稍微降低曝光，讓亮部更突出
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.0;
+            renderer.toneMappingExposure = 0.9; 
             document.body.appendChild(renderer.domElement);
 
             controls = new OrbitControls(camera, renderer.domElement);
@@ -205,11 +206,13 @@
             const pmremGenerator = new THREE.PMREMGenerator(renderer);
             scene.environment = pmremGenerator.fromScene(environment).texture;
 
-            // 強光照明，激發干涉色
-            const dl = new THREE.DirectionalLight(0xffffff, 3);
-            dl.position.set(5, 10, 5);
+            // 【關鍵修改】燈光調整
+            // 1. 增強主光源，製造銳利亮點 (如參考圖)
+            const dl = new THREE.DirectionalLight(0xffffff, 6.0);
+            dl.position.set(5, 10, 8);
             scene.add(dl);
-            scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+            // 2. 降低環境光，增加對比度
+            scene.add(new THREE.AmbientLight(0xffffff, 0.1));
 
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
@@ -229,38 +232,36 @@
             });
 
             animate();
-            log("3D 引擎已啟動 (終極材質已應用)");
+            log("3D 引擎已啟動 (V12.2 高擬真材質)");
         }
 
-        // --- 2. 泡泡材質 (終極調整) ---
+        // --- 2. 泡泡材質 (終極調校) ---
         const noiseMap = createRainbowTexture();
         
-        const geo = new THREE.SphereGeometry(1, 128, 128); // 最高細分
+        const geo = new THREE.SphereGeometry(1, 128, 128);
         const mat = new THREE.MeshPhysicalMaterial({
-            // 【修改點 1】基底顏色改為黑色，讓干涉光最突出
-            color: 0x000000, 
+            color: 0x000000, // 基底全黑，只顯示反射光
             
             transmission: 1,
             transparent: true, 
-            // 【修改點 2】極致透明，只留下一層薄膜感
-            opacity: 0.15,
+            // 【關鍵修改】極低的不透明度，讓中心幾乎消失
+            opacity: 0.1, 
 
             metalness: 0,
             roughness: 0,
-            ior: 1.33, // 水的折射率
+            ior: 1.33,
             thickness: 0.1,
 
-            // 虹彩干涉設定
             iridescence: 1, 
             iridescenceIOR: 1.33,
-            // 擴大厚度範圍，產生更多樣的色彩
-            iridescenceThicknessRange: [100, 900], 
+            // 微調厚度範圍，集中在鮮豔色彩區
+            iridescenceThicknessRange: [350, 750], 
             iridescenceThicknessMap: noiseMap,
             
             clearcoat: 1,
             clearcoatRoughness: 0,
-            // 【修改點 3】增強環境反射強度，讓光澤爆發
-            envMapIntensity: 3.0,
+            // 【關鍵修改】爆發式的環境反射強度，讓色彩「跳」出來
+            envMapIntensity: 6.0, 
             side: THREE.DoubleSide
         });
 
@@ -282,9 +283,8 @@
             requestAnimationFrame(animate);
             controls.update();
 
-            // 加快流動速度
-            noiseMap.offset.y += 0.003; 
-            noiseMap.offset.x += 0.002;
+            noiseMap.offset.y += 0.002; 
+            noiseMap.offset.x += 0.0015;
 
             if(isBlowing && Math.random() > 0.6) { 
                 createBubble();
@@ -293,10 +293,10 @@
             for(let i=bubbles.length-1; i>=0; i--) {
                 const b = bubbles[i];
                 b.mesh.position.add(b.velocity);
-                // 增加擾動感
                 b.mesh.position.y += Math.sin(Date.now()*0.003 + b.mesh.id)*0.015;
-                b.mesh.rotation.y += 0.02;
-                b.mesh.rotation.z += 0.01;
+                b.mesh.rotation.y += 0.01;
+                // 增加一點隨機擺動
+                b.mesh.rotation.z = Math.sin(Date.now()*0.001 + b.mesh.id) * 0.2;
 
                 if(b.mesh.position.y > 25) {
                     scene.remove(b.mesh);
@@ -330,7 +330,7 @@
                     const ratio = h / w;
                     
                     blowDirection = (0.5 - lm[1].x) * 6;
-                    hudDebug.innerText = `嘴型數值: ${ratio.toFixed(2)} (目標 > 0.1，可左右吹氣，3D旋轉，滑鼠/雙指縮放，點它戳破泡泡)`;
+                    hudDebug.innerText = `嘴型數值: ${ratio.toFixed(2)} (目標 > 0.1，可以左右吹，點按戳破泡泡，3D旋轉，滑鼠/雙指縮放)`;
 
                     if (ratio > 0.1 && h > 0.005) { 
                         isBlowing = true;
@@ -359,5 +359,3 @@
     </script>
 </body>
 </html>
-
-
