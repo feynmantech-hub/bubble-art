@@ -348,7 +348,7 @@
                     const ratio = h / w;
                     
                     blowDirection = (0.5 - lm[1].x) * 6;
-                    hudDebug.innerText = `嘴型數值: ${ratio.toFixed(2)} (目標 > 0.1)`;
+                    hudDebug.innerText = `嘴型數值: ${ratio.toFixed(2)} (目標 > 0.1，可以左右吹，點按戳破泡泡，3D旋轉，滑鼠/雙指縮放)`;
 
                     if (ratio > 0.1 && h > 0.005) { 
                         isBlowing = true;
@@ -377,3 +377,4 @@
     </script>
 </body>
 </html>
+
